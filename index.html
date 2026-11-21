@@ -68,6 +68,7 @@
   #touch .right { left: 104px; }
   #touch .jump { right: 16px; }
   #touch .pet { right: 104px; }
+  #touch .gun { right: 192px; }
   body.touch #touch { display: block; }
   body.touch #hint { display: none; }
 </style>
@@ -75,21 +76,22 @@
 <body>
 <div id="wrap">
   <canvas id="game" width="800" height="480"></canvas>
-  <div id="hud"><span id="score">Монеты: 0</span><span id="totem">🐾 Тотем</span><span id="level">Уровень 1</span></div>
+  <div id="hud"><span id="score">Монеты: 0</span><span><span id="ammo">🔫 3</span>&nbsp;&nbsp;<span id="totem">🐾 Тотем</span></span><span id="level">Уровень 1</span></div>
   <div id="overlay">
     <h1>Мини-платформер</h1>
     <p>← → или A/D — движение &nbsp;·&nbsp; ↑ / W / Пробел — прыжок<br>
-       E — погладить кошку (даёт Тотем бессмертия)<br>
+       X / F / клик — дробовик &nbsp;·&nbsp; E — погладить кошку (Тотем: спасёт 1 раз)<br>
        Собирай монеты, активируй чекпоинты, доберись до флага</p>
     <button class="btn" id="startBtn">Играть</button>
   </div>
   <div id="touch">
     <div class="left" data-k="left">←</div>
     <div class="right" data-k="right">→</div>
+    <div class="gun" data-k="gun">🔫</div>
     <div class="pet" data-k="pet">🐾</div>
     <div class="jump" data-k="jump">↑</div>
   </div>
-  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; E — погладить кошку &nbsp;·&nbsp; R — заново</div>
+  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; X — дробовик &nbsp;·&nbsp; E — погладить кошку &nbsp;·&nbsp; R — заново</div>
 </div>
 
 <script>
@@ -113,27 +115,32 @@
 
   const LEVELS = [
     {
-      width: 1600,
+      width: 2200,
       spawn: { x: 40, y: 380 },
       cat: { x: 60, y: 408 },
       platforms: [
         { x: 0, y: 440, w: 700, h: 40 },
-        { x: 780, y: 440, w: 180, h: 40 },
-        { x: 1040, y: 440, w: 180, h: 40 },
-        { x: 1280, y: 440, w: 320, h: 40 },
+        { x: 710, y: 395, w: 100, h: 16 },
+        { x: 820, y: 440, w: 280, h: 40 },
+        { x: 1110, y: 385, w: 100, h: 16 },
+        { x: 1220, y: 440, w: 300, h: 40 },
+        { x: 1530, y: 390, w: 100, h: 16 },
+        { x: 1640, y: 440, w: 560, h: 40 },
         { x: 300, y: 370, w: 140, h: 16 },
-        { x: 540, y: 310, w: 140, h: 16 },
-        { x: 1090, y: 350, w: 110, h: 16 },
-        { x: 1170, y: 280, w: 110, h: 16 },
+        { x: 560, y: 310, w: 140, h: 16 },
+        { x: 900, y: 360, w: 120, h: 16 },
+        { x: 1340, y: 350, w: 120, h: 16 },
+        { x: 1430, y: 280, w: 110, h: 16 },
       ],
-      coins: [ {x:170,y:405},{x:210,y:405},{x:360,y:330},{x:600,y:270},{x:880,y:330},{x:1120,y:310},{x:1210,y:240},{x:1450,y:405},{x:1495,y:405} ],
-      spikes: [],
-      enemies: [ {x:1380,x1:1330,x2:1500,y:411}, {x:1060,x1:1055,x2:1180,y:411} ],
-      checkpoints: [ {x:850,y:392}, {x:1330,y:392} ],
-      flag: { x: 1545, y: 380 },
+      coins: [ {x:170,y:405},{x:210,y:405},{x:360,y:330},{x:620,y:270},{x:755,y:352},{x:1000,y:400},{x:1165,y:345},{x:1400,y:310},{x:1485,y:240},{x:1700,y:405},{x:1750,y:405} ],
+      spikes: [ { x: 1320, y: 420, w: 28, h: 20 }, { x: 2060, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:940,x1:940,x2:1080,y:411}, {x:1740,x1:1740,x2:2040,y:411} ],
+      checkpoints: [ {x:880,y:392} ],
+      ammo: [ {x:225,y:400}, {x:1380,y:400}, {x:2110,y:400} ],
+      flag: { x: 2150, y: 380 },
     },
     {
-      width: 1800,
+      width: 2600,
       spawn: { x: 40, y: 380 },
       cat: { x: 60, y: 408 },
       platforms: [
@@ -147,16 +154,24 @@
         { x: 1100, y: 440, w: 180, h: 40 },
         { x: 1150, y: 350, w: 110, h: 16 },
         { x: 1288, y: 385, w: 90, h: 16 },
-        { x: 1400, y: 440, w: 400, h: 40 },
+        { x: 1400, y: 440, w: 300, h: 40 },
+        { x: 1470, y: 360, w: 120, h: 16 },
+        { x: 1710, y: 390, w: 100, h: 16 },
+        { x: 1820, y: 440, w: 200, h: 40 },
+        { x: 1900, y: 350, w: 110, h: 16 },
+        { x: 2030, y: 385, w: 100, h: 16 },
+        { x: 2140, y: 440, w: 460, h: 40 },
+        { x: 2220, y: 360, w: 120, h: 16 },
       ],
-      coins: [ {x:60,y:400},{x:160,y:400},{x:350,y:350},{x:540,y:320},{x:700,y:350},{x:880,y:400},{x:1030,y:345},{x:1195,y:310},{x:1330,y:345},{x:1495,y:400},{x:1540,y:400} ],
-      spikes: [ { x: 600, y: 420, w: 24, h: 20 }, { x: 1650, y: 420, w: 28, h: 20 } ],
-      enemies: [ {x:445,x1:445,x2:540,y:411}, {x:810,x1:810,x2:940,y:411}, {x:1500,x1:1500,x2:1620,y:411}, {x:1165,x1:1165,x2:1235,y:323} ],
-      checkpoints: [ {x:830,y:392}, {x:1470,y:392} ],
-      flag: { x: 1745, y: 380 },
+      coins: [ {x:60,y:400},{x:160,y:400},{x:350,y:350},{x:540,y:320},{x:700,y:350},{x:880,y:400},{x:1030,y:345},{x:1195,y:310},{x:1330,y:345},{x:1520,y:320},{x:1755,y:350},{x:1945,y:310},{x:2385,y:400},{x:2430,y:400} ],
+      spikes: [ { x: 600, y: 420, w: 24, h: 20 }, { x: 1650, y: 420, w: 28, h: 20 }, { x: 2300, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:445,x1:445,x2:540,y:411}, {x:810,x1:810,x2:940,y:411}, {x:1450,x1:1450,x2:1650,y:411}, {x:505,x1:505,x2:585,y:333}, {x:1485,x1:1485,x2:1565,y:333} ],
+      checkpoints: [ {x:830,y:392}, {x:2250,y:392} ],
+      ammo: [ {x:760,y:400}, {x:2360,y:400} ],
+      flag: { x: 2545, y: 380 },
     },
     {
-      width: 2000,
+      width: 3000,
       spawn: { x: 40, y: 380 },
       cat: { x: 60, y: 408 },
       platforms: [
@@ -172,16 +187,21 @@
         { x: 865, y: 390, w: 90, h: 16 },
         { x: 960, y: 440, w: 220, h: 40 },
         { x: 1190, y: 385, w: 100, h: 16 },
-        { x: 1300, y: 440, w: 700, h: 40 },
+        { x: 1300, y: 440, w: 300, h: 40 },
+        { x: 1610, y: 390, w: 100, h: 16 },
+        { x: 1720, y: 440, w: 200, h: 40 },
+        { x: 1930, y: 385, w: 100, h: 16 },
+        { x: 2040, y: 440, w: 960, h: 40 },
       ],
-      coins: [ {x:70,y:400},{x:160,y:400},{x:315,y:350},{x:765,y:320},{x:925,y:240},{x:790,y:160},{x:615,y:90},{x:425,y:20},{x:905,y:345},{x:1240,y:345},{x:1380,y:400},{x:1425,y:400},{x:1880,y:400} ],
-      spikes: [ { x: 1740, y: 420, w: 28, h: 20 } ],
-      enemies: [ {x:400,x1:400,x2:540,y:411}, {x:680,x1:680,x2:830,y:411}, {x:980,x1:980,x2:1140,y:411}, {x:1790,x1:1790,x2:1880,y:411} ],
-      checkpoints: [ {x:470,y:392}, {x:1030,y:392}, {x:1610,y:392} ],
-      flag: { x: 1930, y: 380 },
+      coins: [ {x:70,y:400},{x:160,y:400},{x:315,y:350},{x:765,y:320},{x:925,y:240},{x:790,y:160},{x:615,y:90},{x:425,y:20},{x:905,y:345},{x:1240,y:345},{x:1430,y:400},{x:1655,y:350},{x:1830,y:400},{x:1980,y:345},{x:2550,y:400},{x:2830,y:400} ],
+      spikes: [ { x: 1740, y: 420, w: 28, h: 20 }, { x: 2700, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:400,x1:400,x2:540,y:411}, {x:680,x1:680,x2:830,y:411}, {x:980,x1:980,x2:1140,y:411}, {x:1450,x1:1450,x2:1580,y:411}, {x:2450,x1:2450,x2:2600,y:411} ],
+      checkpoints: [ {x:470,y:392}, {x:1350,y:392} ],
+      ammo: [ {x:1000,y:400}, {x:2780,y:400} ],
+      flag: { x: 2920, y: 380 },
     },
     {
-      width: 2200,
+      width: 3400,
       spawn: { x: 40, y: 380 },
       cat: { x: 60, y: 408 },
       platforms: [
@@ -197,15 +217,22 @@
         { x: 1580, y: 340, w: 90, h: 16 },
         { x: 1790, y: 385, w: 100, h: 16 },
         { x: 1900, y: 440, w: 300, h: 40 },
+        { x: 2210, y: 390, w: 100, h: 16 },
+        { x: 2320, y: 440, w: 300, h: 40 },
+        { x: 2400, y: 350, w: 90, h: 16 },
+        { x: 2630, y: 385, w: 100, h: 16 },
+        { x: 2740, y: 440, w: 660, h: 40 },
+        { x: 2900, y: 340, w: 120, h: 16 },
       ],
-      coins: [ {x:100,y:400},{x:295,y:310},{x:555,y:350},{x:810,y:300},{x:975,y:345},{x:1248,y:360},{x:1425,y:345},{x:1620,y:300},{x:1845,y:345},{x:2060,y:400},{x:2110,y:400} ],
-      spikes: [ { x: 180, y: 420, w: 28, h: 20 }, { x: 300, y: 420, w: 36, h: 20 }, { x: 720, y: 420, w: 28, h: 20 }, { x: 800, y: 420, w: 36, h: 20 }, { x: 1200, y: 420, w: 36, h: 20 }, { x: 1560, y: 420, w: 28, h: 20 }, { x: 1640, y: 420, w: 36, h: 20 }, { x: 1980, y: 420, w: 28, h: 20 } ],
-      enemies: [ {x:360,x1:360,x2:470,y:411}, {x:845,x1:845,x2:905,y:411}, {x:1240,x1:1240,x2:1330,y:411}, {x:2020,x1:2020,x2:2100,y:411} ],
-      checkpoints: [ {x:640,y:392}, {x:1070,y:392}, {x:1910,y:392} ],
-      flag: { x: 2145, y: 380 },
+      coins: [ {x:100,y:400},{x:295,y:310},{x:555,y:350},{x:810,y:300},{x:975,y:345},{x:1248,y:360},{x:1425,y:345},{x:1620,y:300},{x:1845,y:345},{x:2435,y:310},{x:2665,y:345},{x:2945,y:300},{x:3260,y:400},{x:3310,y:400} ],
+      spikes: [ { x: 180, y: 420, w: 28, h: 20 }, { x: 300, y: 420, w: 36, h: 20 }, { x: 720, y: 420, w: 28, h: 20 }, { x: 800, y: 420, w: 36, h: 20 }, { x: 1200, y: 420, w: 36, h: 20 }, { x: 1560, y: 420, w: 28, h: 20 }, { x: 1640, y: 420, w: 36, h: 20 }, { x: 1980, y: 420, w: 28, h: 20 }, { x: 2060, y: 420, w: 36, h: 20 }, { x: 2520, y: 420, w: 28, h: 20 }, { x: 2580, y: 420, w: 28, h: 20 }, { x: 2980, y: 420, w: 36, h: 20 } ],
+      enemies: [ {x:360,x1:360,x2:470,y:411}, {x:845,x1:845,x2:905,y:411}, {x:1240,x1:1240,x2:1330,y:411}, {x:1700,x1:1700,x2:1770,y:411}, {x:2340,x1:2340,x2:2440,y:411}, {x:3060,x1:3060,x2:3160,y:411} ],
+      checkpoints: [ {x:640,y:392}, {x:1930,y:392} ],
+      ammo: [ {x:1100,y:400}, {x:2760,y:400} ],
+      flag: { x: 3330, y: 380 },
     },
     {
-      width: 2400,
+      width: 4000,
       spawn: { x: 40, y: 380 },
       cat: { x: 60, y: 408 },
       platforms: [
@@ -217,16 +244,23 @@
         { x: 1090, y: 380, w: 110, h: 16 },
         { x: 1220, y: 440, w: 260, h: 40 },
         { x: 1490, y: 385, w: 110, h: 16 },
-        { x: 1620, y: 440, w: 780, h: 40 },
-        { x: 1750, y: 360, w: 130, h: 16 },
-        { x: 1950, y: 280, w: 130, h: 16 },
-        { x: 2150, y: 200, w: 130, h: 16 },
+        { x: 1620, y: 440, w: 300, h: 40 },
+        { x: 1930, y: 390, w: 110, h: 16 },
+        { x: 2060, y: 440, w: 260, h: 40 },
+        { x: 2330, y: 385, w: 110, h: 16 },
+        { x: 2460, y: 440, w: 300, h: 40 },
+        { x: 2770, y: 390, w: 110, h: 16 },
+        { x: 2900, y: 440, w: 1100, h: 40 },
+        { x: 3100, y: 360, w: 130, h: 16 },
+        { x: 3330, y: 280, w: 130, h: 16 },
+        { x: 3560, y: 200, w: 130, h: 16 },
       ],
-      coins: [ {x:250,y:400},{x:380,y:345},{x:505,y:400},{x:780,y:345},{x:910,y:400},{x:1140,y:340},{x:1540,y:345},{x:1720,y:400},{x:1810,y:320},{x:2010,y:240},{x:2250,y:160},{x:2270,y:160} ],
-      spikes: [ { x: 530, y: 420, w: 28, h: 20 }, { x: 630, y: 420, w: 36, h: 20 }, { x: 1010, y: 420, w: 28, h: 20 }, { x: 1345, y: 420, w: 28, h: 20 }, { x: 1420, y: 420, w: 36, h: 20 } ],
-      enemies: [ {x:180,x1:120,x2:300,y:411}, {x:345,x1:345,x2:405,y:358}, {x:875,x1:875,x2:1000,y:411}, {x:1235,x1:1235,x2:1330,y:411}, {x:1700,x1:1700,x2:1780,y:411}, {x:1765,x1:1765,x2:1860,y:333} ],
-      checkpoints: [ {x:480,y:392}, {x:900,y:392}, {x:1245,y:392}, {x:1652,y:392} ],
-      flag: { x: 2195, y: 140 },
+      coins: [ {x:250,y:400},{x:380,y:345},{x:505,y:400},{x:780,y:345},{x:910,y:400},{x:1140,y:340},{x:1540,y:345},{x:1810,y:400},{x:1985,y:350},{x:2250,y:400},{x:2560,y:400},{x:2830,y:350},{x:3140,y:320},{x:3370,y:240},{x:3600,y:160},{x:3640,y:160} ],
+      spikes: [ { x: 530, y: 420, w: 28, h: 20 }, { x: 630, y: 420, w: 36, h: 20 }, { x: 1010, y: 420, w: 28, h: 20 }, { x: 1345, y: 420, w: 28, h: 20 }, { x: 1420, y: 420, w: 36, h: 20 }, { x: 1700, y: 420, w: 28, h: 20 }, { x: 2150, y: 420, w: 36, h: 20 }, { x: 2560, y: 420, w: 28, h: 20 }, { x: 3020, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:180,x1:120,x2:300,y:411}, {x:345,x1:345,x2:405,y:358}, {x:875,x1:875,x2:1000,y:411}, {x:1235,x1:1235,x2:1330,y:411}, {x:1640,x1:1640,x2:1780,y:411}, {x:2480,x1:2480,x2:2600,y:411}, {x:3160,x1:3160,x2:3260,y:411} ],
+      checkpoints: [ {x:480,y:392}, {x:2950,y:392} ],
+      ammo: [ {x:570,y:400}, {x:1800,y:400}, {x:2500,y:400}, {x:2960,y:400} ],
+      flag: { x: 3610, y: 140 },
     },
   ];
 
@@ -234,14 +268,15 @@
   const COIN_R = 16;
   const PLAYER_W = 30, PLAYER_H = 38;
   const ENEMY_SPEED = 1.2;
+  const BULLET_SPEED = 10, START_AMMO = 3;
 
   let state = 'menu';
   let levelIdx = 0;
   let score = 0;
   let camX = 0, time = 0, flashText = null;
 
-  let player, lvl, platforms, coins, spikes, flag, collected, enemies, checkpoints, cat;
-  let totem = false, curCp = null, cpSnap = null;
+  let player, lvl, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
+  let totem = false, ammo = 0, curCp = null, cpSnap = null;
 
   function loadLevel(i) {
     lvl = LEVELS[i];
@@ -253,10 +288,13 @@
     cpSnap = { collected: collected.slice(), score };
     curCp = { x: lvl.spawn.x, y: lvl.spawn.y };
     totem = false;
+    ammo = START_AMMO;
     player = { x: lvl.spawn.x, y: lvl.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
     enemies = (lvl.enemies || []).map(e => ({ ...e, w: 28, h: 26, dir: 1, dead: false }));
     checkpoints = (lvl.checkpoints || []).map(c => ({ ...c, active: false }));
-    cat = { ...lvl.cat, w: 44, h: 36, given: false };
+    ammoBoxes = (lvl.ammo || []).map(a => ({ ...a, taken: false }));
+    bullets = [];
+    catPickups = { ...lvl.cat, w: 44, h: 36, given: false };
     camX = 0;
     updateHud();
   }
@@ -273,8 +311,30 @@
     player.vy = 0;
   }
 
+  function saveDeath() {
+    totem = false;
+    updateHud();
+    respawnAtCp();
+    flash('Тотем спас тебя!', 110);
+  }
+
+  function onDeath(cause) {
+    if (totem) { saveDeath(); return true; }
+    state = 'dead';
+    collected = cpSnap.collected.slice();
+    score = cpSnap.score;
+    updateHud();
+    flash(cause, 130);
+    setTimeout(() => {
+      respawnAtCp();
+      state = 'play';
+    }, 600);
+    return false;
+  }
+
   function tryPet() {
     if (state !== 'play') return;
+    const cat = catPickups;
     const near = Math.abs((player.x + player.w / 2) - (cat.x + cat.w / 2)) < 80 &&
                  Math.abs((player.y + player.h) - (cat.y + cat.h)) < 70;
     if (!near) return;
@@ -283,6 +343,33 @@
     totem = true;
     flash('Мур! Тотем бессмертия твой!', 140);
     updateHud();
+  }
+
+  function fire() {
+    if (state !== 'play' || ammo <= 0) return;
+    ammo--;
+    updateHud();
+    bullets.push({
+      x: player.face === 1 ? player.x + player.w : player.x - 12,
+      y: player.y + 15, w: 12, h: 6, dir: player.face,
+    });
+    flash('Бах!', 14);
+  }
+
+  function updateBullets() {
+    for (const b of bullets) {
+      if (b.dead) continue;
+      b.x += b.dir * BULLET_SPEED;
+      if (b.x < -20 || b.x > lvl.width + 20) { b.dead = true; continue; }
+      for (const e of enemies) {
+        if (!e.dead && rectsHit(b, e)) { e.dead = true; b.dead = true; flash('Попадание!', 30); break; }
+      }
+      if (b.dead) continue;
+      for (const p of platforms) {
+        if (rectsHit(b, p)) { b.dead = true; break; }
+      }
+    }
+    bullets = bullets.filter(b => !b.dead);
   }
 
   function update() {
@@ -325,25 +412,20 @@
       }
     }
 
-    if (player.y > H + 60) {
-      if (totem) { respawnAtCp(); flash('Тотем спас тебя!', 100); }
-      else die('Упал в пропасть!');
-      return;
-    }
+    if (player.y > H + 60) { onDeath('Упал в пропасть!'); return; }
 
     for (const s of spikes) {
-      if (rectsHit(body, s, 8) && !totem) { die('Напоролся на шипы!'); return; }
+      if (rectsHit(body, s, 8)) { onDeath('Напоролся на шипы!'); return; }
     }
+
+    updateBullets();
 
     for (const e of enemies) {
       if (e.dead) continue;
       e.x += e.dir * ENEMY_SPEED;
       if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
       if (e.x + e.w > e.x2) { e.x = e.x2 - e.w; e.dir = -1; }
-      if (rectsHit(body, e, 2)) {
-        if (totem) { e.dead = true; flash('Враг повержен!', 60); }
-        else { die('Враг тебя поймал!'); return; }
-      }
+      if (rectsHit(body, e, 2)) { onDeath('Враг тебя поймал!'); return; }
     }
 
     coins.forEach((c, i) => {
@@ -351,6 +433,12 @@
       const cr = { x: c.x - COIN_R, y: c.y - COIN_R, w: COIN_R * 2, h: COIN_R * 2 };
       if (rectsHit(body, cr)) { collected[i] = true; score++; updateHud(); }
     });
+
+    for (const box of ammoBoxes) {
+      if (box.taken) continue;
+      const br = { x: box.x - 13, y: box.y - 13, w: 26, h: 26 };
+      if (rectsHit(body, br)) { box.taken = true; ammo += 3; updateHud(); flash('+3 патрона', 45); }
+    }
 
     for (const c of checkpoints) {
       if (c.active) continue;
@@ -377,18 +465,6 @@
     }
   }
 
-  function die(cause) {
-    state = 'dead';
-    collected = cpSnap.collected.slice();
-    score = cpSnap.score;
-    updateHud();
-    flash(cause, 130);
-    setTimeout(() => {
-      respawnAtCp();
-      state = 'play';
-    }, 600);
-  }
-
   function restart() {
     if (state === 'menu') return;
     collected = cpSnap.collected.slice();
@@ -410,53 +486,6 @@
     ctx.closePath();
   }
 
-  function drawCoin(x, y) {
-    ctx.fillStyle = COLORS.coin;
-    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = COLORS.bg;
-    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
-  }
-
-  function drawCat() {
-    const c = cat;
-    ctx.strokeStyle = COLORS.cat;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(c.x + 2, c.y + 20);
-    ctx.quadraticCurveTo(c.x - 14, c.y + 10, c.x - 8, c.y - 2);
-    ctx.stroke();
-    ctx.fillStyle = COLORS.cat;
-    roundRect(c.x, c.y + 8, 28, 22, 8); ctx.fill();
-    ctx.beginPath(); ctx.arc(c.x + 30, c.y + 8, 11, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(c.x + 21, c.y + 1); ctx.lineTo(c.x + 23, c.y - 9); ctx.lineTo(c.x + 28, c.y + 0);
-    ctx.moveTo(c.x + 33, c.y + 0); ctx.lineTo(c.x + 37, c.y - 9); ctx.lineTo(c.x + 39, c.y + 1);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(c.x + 27, c.y + 7, 3, 0, Math.PI * 2);
-    ctx.arc(c.x + 34, c.y + 7, 3, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2b3a55';
-    ctx.beginPath();
-    ctx.arc(c.x + 27, c.y + 7, 1.4, 0, Math.PI * 2);
-    ctx.arc(c.x + 34, c.y + 7, 1.4, 0, Math.PI * 2);
-    ctx.fill();
-    if (c.given) {
-      ctx.fillStyle = COLORS.coin;
-      ctx.beginPath(); ctx.arc(c.x + 30, c.y - 14, 7, 0, Math.PI * 2); ctx.fill();
-    } else if (state === 'play') {
-      const near = Math.abs((player.x + player.w / 2) - (c.x + c.w / 2)) < 80;
-      if (near) {
-        ctx.fillStyle = '#5b6b87';
-        ctx.font = 'bold 13px Segoe UI, system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('погладь: ' + ('ontouchstart' in window ? '🐾' : 'E'), c.x + 22, c.y - 18);
-        ctx.textAlign = 'left';
-      }
-    }
-  }
-
   function drawWorld() {
     camX = Math.max(0, Math.min(lvl.width - W, player.x + player.w / 2 - W * 0.45));
     ctx.save();
@@ -464,13 +493,29 @@
 
     coins.forEach((c, i) => {
       if (collected[i]) return;
-      drawCoin(c.x, c.y + Math.sin(time * 4 + i * 1.3) * 3);
+      ctx.fillStyle = COLORS.coin;
+      const wob = Math.sin(time * 4 + i * 1.3) * 3;
+      ctx.beginPath(); ctx.arc(c.x, c.y + wob, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = COLORS.bg;
+      ctx.beginPath(); ctx.arc(c.x, c.y + wob, 5, 0, Math.PI * 2); ctx.fill();
     });
 
     for (const p of platforms) {
       ctx.fillStyle = COLORS.platform;
       roundRect(p.x, p.y, p.w, p.h, p.h > 30 ? 10 : 8);
       ctx.fill();
+    }
+
+    for (const box of ammoBoxes) {
+      if (box.taken) continue;
+      ctx.fillStyle = COLORS.platform;
+      roundRect(box.x - 13, box.y - 13, 26, 26, 6);
+      ctx.fill();
+      ctx.fillStyle = COLORS.coin;
+      ctx.font = 'bold 15px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🔫', box.x, box.y + 5);
+      ctx.textAlign = 'left';
     }
 
     for (const s of spikes) {
@@ -533,16 +578,51 @@
       ctx.stroke();
     }
 
-    drawCat();
+    const cat = catPickups;
+    ctx.strokeStyle = COLORS.cat;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(cat.x + 2, cat.y + 20);
+    ctx.quadraticCurveTo(cat.x - 14, cat.y + 10, cat.x - 8, cat.y - 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.cat;
+    roundRect(cat.x, cat.y + 8, 28, 22, 8); ctx.fill();
+    ctx.beginPath(); ctx.arc(cat.x + 30, cat.y + 8, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cat.x + 21, cat.y + 1); ctx.lineTo(cat.x + 23, cat.y - 9); ctx.lineTo(cat.x + 28, cat.y + 0);
+    ctx.moveTo(cat.x + 33, cat.y + 0); ctx.lineTo(cat.x + 37, cat.y - 9); ctx.lineTo(cat.x + 39, cat.y + 1);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cat.x + 27, cat.y + 7, 3, 0, Math.PI * 2);
+    ctx.arc(cat.x + 34, cat.y + 7, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2b3a55';
+    ctx.beginPath();
+    ctx.arc(cat.x + 27, cat.y + 7, 1.4, 0, Math.PI * 2);
+    ctx.arc(cat.x + 34, cat.y + 7, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    if (cat.given) {
+      ctx.fillStyle = COLORS.coin;
+      ctx.beginPath(); ctx.arc(cat.x + 30, cat.y - 14, 7, 0, Math.PI * 2); ctx.fill();
+    } else if (state === 'play') {
+      const near = Math.abs((player.x + player.w / 2) - (cat.x + cat.w / 2)) < 80;
+      if (near) {
+        ctx.fillStyle = '#5b6b87';
+        ctx.font = 'bold 13px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('погладь: ' + ('ontouchstart' in window ? '🐾' : 'E'), cat.x + 22, cat.y - 18);
+        ctx.textAlign = 'left';
+      }
+    }
 
-    const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
     ctx.fillStyle = totem ? '#e0a800' : COLORS.player;
+    const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
     roundRect(player.x, player.y + bob, player.w, player.h, 8);
     ctx.fill();
     if (totem) {
-      ctx.fillStyle = COLORS.bgtotem || '#fff';
       ctx.font = '14px sans-serif';
-      ctx.fillText('🐾', player.x + 8, player.y - 6);
+      ctx.fillText('🐾', player.x + 8, player.y - 6 + bob);
     }
     const ex = player.x + (player.face === 1 ? player.w - 16 : 6);
     ctx.fillStyle = '#fff';
@@ -555,6 +635,9 @@
     ctx.arc(ex + 5 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
     ctx.arc(ex - 1 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
     ctx.fill();
+
+    ctx.fillStyle = '#2b3a55';
+    for (const b of bullets) ctx.fillRect(b.x, b.y, b.w, b.h);
 
     ctx.restore();
   }
@@ -577,10 +660,12 @@
   const scoreEl = document.getElementById('score');
   const levelEl = document.getElementById('level');
   const totemEl = document.getElementById('totem');
+  const ammoEl = document.getElementById('ammo');
 
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
     levelEl.textContent = 'Уровень ' + (levelIdx + 1);
+    ammoEl.textContent = '🔫 ' + ammo;
     totemEl.style.display = totem ? 'inline-block' : 'none';
   }
 
@@ -608,6 +693,7 @@
       e.preventDefault();
       if (state !== 'play') start();
     }
+    if (['KeyX','KeyF'].includes(e.code)) fire();
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
   });
@@ -615,6 +701,7 @@
     if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = false;
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = false;
   });
+  cv.addEventListener('mousedown', fire);
 
   const isTouch = 'ontouchstart' in window;
   if (isTouch) document.body.classList.add('touch');
@@ -624,6 +711,7 @@
       e.preventDefault();
       if (k === 'jump') { if (state !== 'play') start(); keys.jump = true; }
       else if (k === 'pet') tryPet();
+      else if (k === 'gun') fire();
       else keys[k] = true;
     };
     const off = e => { e.preventDefault(); if (k !== 'jump') keys[k] = false; };
