@@ -133,10 +133,10 @@
         { x: 1430, y: 280, w: 110, h: 16 },
       ],
       coins: [ {x:170,y:405},{x:210,y:405},{x:360,y:330},{x:620,y:270},{x:755,y:352},{x:1000,y:400},{x:1165,y:345},{x:1400,y:310},{x:1485,y:240},{x:1700,y:405},{x:1750,y:405} ],
-      spikes: [ { x: 1320, y: 420, w: 28, h: 20 }, { x: 2060, y: 420, w: 28, h: 20 } ],
-      enemies: [ {x:940,x1:940,x2:1080,y:411}, {x:1740,x1:1740,x2:2040,y:411} ],
+      spikes: [ { x: 1490, y: 420, w: 24, h: 20 }, { x: 2060, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:940,x1:940,x2:1080,y:411}, {x:1260,x1:1260,x2:1480,y:411}, {x:1740,x1:1740,x2:2040,y:411} ],
       checkpoints: [ {x:880,y:392} ],
-      ammo: [ {x:225,y:400}, {x:1380,y:400}, {x:2110,y:400} ],
+      ammo: [ {x:225,y:400}, {x:1380,y:400}, {x:1860,y:400}, {x:2110,y:400} ],
       flag: { x: 2150, y: 380 },
     },
     {
@@ -167,7 +167,7 @@
       spikes: [ { x: 600, y: 420, w: 24, h: 20 }, { x: 1650, y: 420, w: 28, h: 20 }, { x: 2300, y: 420, w: 28, h: 20 } ],
       enemies: [ {x:445,x1:445,x2:540,y:411}, {x:810,x1:810,x2:940,y:411}, {x:1450,x1:1450,x2:1650,y:411}, {x:505,x1:505,x2:585,y:333}, {x:1485,x1:1485,x2:1565,y:333} ],
       checkpoints: [ {x:830,y:392}, {x:2250,y:392} ],
-      ammo: [ {x:760,y:400}, {x:2360,y:400} ],
+      ammo: [ {x:760,y:400}, {x:1870,y:400}, {x:2360,y:400} ],
       flag: { x: 2545, y: 380 },
     },
     {
@@ -197,7 +197,7 @@
       spikes: [ { x: 1740, y: 420, w: 28, h: 20 }, { x: 2700, y: 420, w: 28, h: 20 } ],
       enemies: [ {x:400,x1:400,x2:540,y:411}, {x:680,x1:680,x2:830,y:411}, {x:980,x1:980,x2:1140,y:411}, {x:1450,x1:1450,x2:1580,y:411}, {x:2450,x1:2450,x2:2600,y:411} ],
       checkpoints: [ {x:470,y:392}, {x:1350,y:392} ],
-      ammo: [ {x:1000,y:400}, {x:2780,y:400} ],
+      ammo: [ {x:1000,y:400}, {x:1890,y:400}, {x:2320,y:400}, {x:2780,y:400} ],
       flag: { x: 2920, y: 380 },
     },
     {
@@ -350,8 +350,8 @@
     ammo--;
     updateHud();
     bullets.push({
-      x: player.face === 1 ? player.x + player.w : player.x - 12,
-      y: player.y + 15, w: 12, h: 6, dir: player.face,
+      x: player.face === 1 ? player.x + player.w + 24 : player.x - 36,
+      y: player.y + 16, w: 12, h: 6, dir: player.face,
     });
     flash('Бах!', 14);
   }
@@ -486,6 +486,64 @@
     ctx.closePath();
   }
 
+  function drawPlayer() {
+    const p = player;
+    const f = p.face;
+    const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
+    const x = p.x, y = p.y + bob, w = p.w, h = p.h;
+    const skin = totem ? '#e0a800' : COLORS.player;
+    const moving = p.onGround && Math.abs(p.vx) > 0.3;
+    const phase = time * 13;
+    const swing = moving ? Math.sin(phase) * (Math.abs(p.vx) / MAX_VX) * 7 : 0;
+
+    ctx.fillStyle = totem ? '#e0a800' : COLORS.player;
+    roundRect(x, y, w, 26, 8);
+    ctx.fill();
+
+    ctx.fillStyle = totem ? '#b8860b' : '#d14b3a';
+    if (p.onGround) {
+      ctx.fillRect(x + 6 + swing, y + 24, 8, h - 25);
+      ctx.fillRect(x + w - 14 - swing, y + 24, 8, h - 25);
+    } else {
+      ctx.fillRect(x + 3, y + 24, 8, h - 25);
+      ctx.fillRect(x + w - 11, y + 24, 8, h - 25);
+    }
+
+    const gy = y + 14;
+    const gx = f === 1 ? x + w - 6 : x - 22;
+    ctx.strokeStyle = skin;
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(x + (f === 1 ? w - 10 : 10), gy + 2);
+    ctx.lineTo(f === 1 ? gx + 4 : gx + 22, gy + 2);
+    ctx.stroke();
+    ctx.fillStyle = '#2b3a55';
+    roundRect(gx, gy, 28, 5, 2);
+    ctx.fill();
+    ctx.fillStyle = '#8d643b';
+    roundRect(f === 1 ? gx + 24 : gx - 4, gy - 1, 10, 7, 3);
+    ctx.fill();
+    ctx.fillStyle = skin;
+    roundRect(f === 1 ? gx + 15 : gx + 6, gy - 1, 7, 7, 3);
+    ctx.fill();
+
+    if (totem) {
+      ctx.font = '14px sans-serif';
+      ctx.fillText('🐾', x + 8, y - 8);
+    }
+    const ex = x + (f === 1 ? w - 16 : 6);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(ex + 5, y + 11, 3.4, 0, Math.PI * 2);
+    ctx.arc(ex - 1, y + 11, 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2b3a55';
+    ctx.beginPath();
+    ctx.arc(ex + 5 + f, y + 11, 1.5, 0, Math.PI * 2);
+    ctx.arc(ex - 1 + f, y + 11, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   function drawWorld() {
     camX = Math.max(0, Math.min(lvl.width - W, player.x + player.w / 2 - W * 0.45));
     ctx.save();
@@ -616,25 +674,7 @@
       }
     }
 
-    ctx.fillStyle = totem ? '#e0a800' : COLORS.player;
-    const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
-    roundRect(player.x, player.y + bob, player.w, player.h, 8);
-    ctx.fill();
-    if (totem) {
-      ctx.font = '14px sans-serif';
-      ctx.fillText('🐾', player.x + 8, player.y - 6 + bob);
-    }
-    const ex = player.x + (player.face === 1 ? player.w - 16 : 6);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(ex + 5, player.y + 12 + bob, 3.4, 0, Math.PI * 2);
-    ctx.arc(ex - 1, player.y + 12 + bob, 3.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#2b3a55';
-    ctx.beginPath();
-    ctx.arc(ex + 5 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
-    ctx.arc(ex - 1 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
-    ctx.fill();
+    drawPlayer();
 
     ctx.fillStyle = '#2b3a55';
     for (const b of bullets) ctx.fillRect(b.x, b.y, b.w, b.h);
