@@ -16,9 +16,7 @@
     overflow: hidden;
     touch-action: none;
   }
-  #wrap {
-    position: relative;
-  }
+  #wrap { position: relative; }
   canvas {
     display: block;
     border-radius: 16px;
@@ -27,77 +25,49 @@
   }
   #hud {
     position: absolute;
-    top: 14px;
-    left: 16px;
-    right: 16px;
-    display: flex;
-    justify-content: space-between;
-    font-weight: 700;
-    font-size: 18px;
-    color: #2b3a55;
+    top: 14px; left: 16px; right: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-weight: 700; font-size: 18px; color: #2b3a55;
     pointer-events: none;
   }
-  #overlay {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    background: rgba(250,250,250,.86);
-    border-radius: 16px;
+  #totem {
+    display: none;
+    background: #ffc93c;
     color: #2b3a55;
-    text-align: center;
-    cursor: pointer;
+    padding: 2px 12px;
+    border-radius: 999px;
+    font-size: 14px;
+  }
+  #level { color: #5b6b87; }
+  #overlay {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    background: rgba(250,250,250,.86);
+    border-radius: 16px; color: #2b3a55; text-align: center; cursor: pointer;
   }
   #overlay.hidden { display: none; }
   #overlay h1 { font-size: 34px; letter-spacing: .5px; }
-  #overlay p { font-size: 16px; color: #5b6b87; line-height: 1.6; }
+  #overlay p { font-size: 16px; color: #5b6b87; line-height: 1.7; }
   #overlay .btn {
-    margin-top: 6px;
-    padding: 12px 30px;
-    background: #ff6b6b;
-    color: #fff;
-    border: none;
-    border-radius: 999px;
-    font-size: 17px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: transform .12s;
+    margin-top: 6px; padding: 12px 30px;
+    background: #ff6b6b; color: #fff; border: none; border-radius: 999px;
+    font-size: 17px; font-weight: 700; cursor: pointer; transition: transform .12s;
   }
   #overlay .btn:hover { transform: scale(1.05); }
   #hint {
-    position: absolute;
-    bottom: 12px;
-    width: 100%;
-    text-align: center;
-    color: #9aa8bf;
-    font-size: 13px;
-    pointer-events: none;
+    position: absolute; bottom: 12px; width: 100%; text-align: center;
+    color: #9aa8bf; font-size: 13px; pointer-events: none;
   }
-  #touch {
-    position: absolute;
-    inset: 0;
-    display: none;
-  }
+  #touch { position: absolute; inset: 0; display: none; }
   #touch div {
-    position: absolute;
-    bottom: 16px;
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: rgba(43,58,85,.14);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 28px;
-    color: #2b3a55;
-    user-select: none;
+    position: absolute; bottom: 16px; width: 72px; height: 72px; border-radius: 50%;
+    background: rgba(43,58,85,.14); display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: #2b3a55; user-select: none;
   }
   #touch .left { left: 16px; }
   #touch .right { left: 104px; }
   #touch .jump { right: 16px; }
+  #touch .pet { right: 104px; }
   body.touch #touch { display: block; }
   body.touch #hint { display: none; }
 </style>
@@ -105,18 +75,21 @@
 <body>
 <div id="wrap">
   <canvas id="game" width="800" height="480"></canvas>
-  <div id="hud"><span id="score">Монеты: 0</span><span id="level">Уровень 1</span></div>
+  <div id="hud"><span id="score">Монеты: 0</span><span id="totem">🐾 Тотем</span><span id="level">Уровень 1</span></div>
   <div id="overlay">
     <h1>Мини-платформер</h1>
-    <p>← → или A/D — движение<br>↑ / W / Пробел — прыжок<br>Собери все монеты и доберись до флага</p>
+    <p>← → или A/D — движение &nbsp;·&nbsp; ↑ / W / Пробел — прыжок<br>
+       E — погладить кошку (даёт Тотем бессмертия)<br>
+       Собирай монеты, активируй чекпоинты, доберись до флага</p>
     <button class="btn" id="startBtn">Играть</button>
   </div>
   <div id="touch">
     <div class="left" data-k="left">←</div>
     <div class="right" data-k="right">→</div>
+    <div class="pet" data-k="pet">🐾</div>
     <div class="jump" data-k="jump">↑</div>
   </div>
-  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; R — заново</div>
+  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; E — погладить кошку &nbsp;·&nbsp; R — заново</div>
 </div>
 
 <script>
@@ -133,100 +106,159 @@
     coin: '#ffc93c',
     flag: '#4ecdc4',
     spike: '#ff5b5b',
+    enemy: '#a06cd5',
+    cat: '#8f9fb8',
     text: '#2b3a55',
   };
 
   const LEVELS = [
     {
+      width: 1600,
       spawn: { x: 40, y: 380 },
+      cat: { x: 60, y: 408 },
       platforms: [
-        { x: 0, y: 440, w: 800, h: 40 },
-        { x: 160, y: 370, w: 160, h: 16 },
-        { x: 400, y: 300, w: 160, h: 16 },
-        { x: 640, y: 230, w: 140, h: 16 },
+        { x: 0, y: 440, w: 700, h: 40 },
+        { x: 780, y: 440, w: 180, h: 40 },
+        { x: 1040, y: 440, w: 180, h: 40 },
+        { x: 1280, y: 440, w: 320, h: 40 },
+        { x: 300, y: 370, w: 140, h: 16 },
+        { x: 540, y: 310, w: 140, h: 16 },
+        { x: 1090, y: 350, w: 110, h: 16 },
+        { x: 1170, y: 280, w: 110, h: 16 },
       ],
-      coins: [ {x:50,y:405},{x:85,y:405},{x:230,y:325},{x:270,y:325},{x:470,y:255},{x:510,y:255},{x:700,y:185},{x:740,y:185} ],
+      coins: [ {x:170,y:405},{x:210,y:405},{x:360,y:330},{x:600,y:270},{x:880,y:330},{x:1120,y:310},{x:1210,y:240},{x:1450,y:405},{x:1495,y:405} ],
       spikes: [],
-      flag: { x: 750, y: 380 },
+      enemies: [ {x:1380,x1:1330,x2:1500,y:411}, {x:1060,x1:1055,x2:1180,y:411} ],
+      checkpoints: [ {x:850,y:392}, {x:1330,y:392} ],
+      flag: { x: 1545, y: 380 },
     },
     {
+      width: 1800,
       spawn: { x: 40, y: 380 },
+      cat: { x: 60, y: 408 },
       platforms: [
-        { x: 0, y: 440, w: 220, h: 40 },
-        { x: 230, y: 390, w: 100, h: 16 },
-        { x: 360, y: 440, w: 180, h: 40 },
-        { x: 545, y: 380, w: 100, h: 16 },
-        { x: 680, y: 440, w: 120, h: 40 },
+        { x: 0, y: 440, w: 300, h: 40 },
+        { x: 310, y: 390, w: 100, h: 16 },
+        { x: 430, y: 440, w: 220, h: 40 },
+        { x: 490, y: 360, w: 110, h: 16 },
+        { x: 660, y: 390, w: 100, h: 16 },
+        { x: 780, y: 440, w: 200, h: 40 },
+        { x: 990, y: 385, w: 90, h: 16 },
+        { x: 1100, y: 440, w: 180, h: 40 },
+        { x: 1150, y: 350, w: 110, h: 16 },
+        { x: 1288, y: 385, w: 90, h: 16 },
+        { x: 1400, y: 440, w: 400, h: 40 },
       ],
-      coins: [ {x:60,y:400},{x:150,y:400},{x:275,y:350},{x:440,y:390},{x:590,y:340},{x:720,y:400},{x:755,y:400} ],
-      spikes: [ { x: 430, y: 420, w: 28, h: 20 } ],
-      flag: { x: 760, y: 380 },
+      coins: [ {x:60,y:400},{x:160,y:400},{x:350,y:350},{x:540,y:320},{x:700,y:350},{x:880,y:400},{x:1030,y:345},{x:1195,y:310},{x:1330,y:345},{x:1495,y:400},{x:1540,y:400} ],
+      spikes: [ { x: 600, y: 420, w: 24, h: 20 }, { x: 1650, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:445,x1:445,x2:540,y:411}, {x:810,x1:810,x2:940,y:411}, {x:1500,x1:1500,x2:1620,y:411}, {x:1165,x1:1165,x2:1235,y:323} ],
+      checkpoints: [ {x:830,y:392}, {x:1470,y:392} ],
+      flag: { x: 1745, y: 380 },
     },
     {
+      width: 2000,
       spawn: { x: 40, y: 380 },
+      cat: { x: 60, y: 408 },
       platforms: [
-        { x: 0, y: 440, w: 200, h: 40 },
-        { x: 260, y: 360, w: 150, h: 16 },
-        { x: 470, y: 280, w: 150, h: 16 },
-        { x: 300, y: 200, w: 140, h: 16 },
-        { x: 100, y: 120, w: 160, h: 16 },
-        { x: 360, y: 60, w: 140, h: 16 },
+        { x: 0, y: 440, w: 260, h: 40 },
+        { x: 270, y: 390, w: 100, h: 16 },
+        { x: 380, y: 440, w: 180, h: 40 },
+        { x: 660, y: 440, w: 200, h: 40 },
+        { x: 720, y: 360, w: 110, h: 16 },
+        { x: 880, y: 280, w: 110, h: 16 },
+        { x: 740, y: 200, w: 120, h: 16 },
+        { x: 560, y: 130, w: 120, h: 16 },
+        { x: 360, y: 60, w: 120, h: 16 },
+        { x: 865, y: 390, w: 90, h: 16 },
+        { x: 960, y: 440, w: 220, h: 40 },
+        { x: 1190, y: 385, w: 100, h: 16 },
+        { x: 1300, y: 440, w: 700, h: 40 },
       ],
-      coins: [ {x:70,y:405},{x:115,y:405},{x:330,y:320},{x:545,y:240},{x:370,y:160},{x:175,y:80},{x:400,y:15},{x:440,y:15} ],
-      spikes: [ { x: 150, y: 420, w: 32, h: 20 } ],
-      flag: { x: 415, y: 0 },
+      coins: [ {x:70,y:400},{x:160,y:400},{x:315,y:350},{x:765,y:320},{x:925,y:240},{x:790,y:160},{x:615,y:90},{x:425,y:20},{x:905,y:345},{x:1240,y:345},{x:1380,y:400},{x:1425,y:400},{x:1880,y:400} ],
+      spikes: [ { x: 1740, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:400,x1:400,x2:540,y:411}, {x:680,x1:680,x2:830,y:411}, {x:980,x1:980,x2:1140,y:411}, {x:1790,x1:1790,x2:1880,y:411} ],
+      checkpoints: [ {x:470,y:392}, {x:1030,y:392}, {x:1610,y:392} ],
+      flag: { x: 1930, y: 380 },
     },
     {
+      width: 2200,
       spawn: { x: 40, y: 380 },
+      cat: { x: 60, y: 408 },
       platforms: [
-        { x: 0, y: 440, w: 800, h: 40 },
-        { x: 200, y: 340, w: 100, h: 16 },
-        { x: 390, y: 340, w: 110, h: 16 },
-        { x: 530, y: 340, w: 110, h: 16 },
+        { x: 0, y: 440, w: 500, h: 40 },
+        { x: 260, y: 350, w: 90, h: 16 },
+        { x: 510, y: 390, w: 100, h: 16 },
+        { x: 620, y: 440, w: 300, h: 40 },
+        { x: 770, y: 340, w: 90, h: 16 },
+        { x: 930, y: 385, w: 100, h: 16 },
+        { x: 1040, y: 440, w: 320, h: 40 },
+        { x: 1370, y: 385, w: 100, h: 16 },
+        { x: 1480, y: 440, w: 300, h: 40 },
+        { x: 1580, y: 340, w: 90, h: 16 },
+        { x: 1790, y: 385, w: 100, h: 16 },
+        { x: 1900, y: 440, w: 300, h: 40 },
       ],
-      coins: [ {x:95,y:400},{x:245,y:300},{x:295,y:300},{x:440,y:300},{x:490,y:300},{x:575,y:300},{x:615,y:300},{x:750,y:400} ],
-      spikes: [ { x: 250, y: 420, w: 28, h: 20 }, { x: 420, y: 420, w: 36, h: 20 }, { x: 560, y: 420, w: 28, h: 20 } ],
-      flag: { x: 750, y: 380 },
+      coins: [ {x:100,y:400},{x:295,y:310},{x:555,y:350},{x:810,y:300},{x:975,y:345},{x:1248,y:360},{x:1425,y:345},{x:1620,y:300},{x:1845,y:345},{x:2060,y:400},{x:2110,y:400} ],
+      spikes: [ { x: 180, y: 420, w: 28, h: 20 }, { x: 300, y: 420, w: 36, h: 20 }, { x: 720, y: 420, w: 28, h: 20 }, { x: 800, y: 420, w: 36, h: 20 }, { x: 1200, y: 420, w: 36, h: 20 }, { x: 1560, y: 420, w: 28, h: 20 }, { x: 1640, y: 420, w: 36, h: 20 }, { x: 1980, y: 420, w: 28, h: 20 } ],
+      enemies: [ {x:360,x1:360,x2:470,y:411}, {x:845,x1:845,x2:905,y:411}, {x:1240,x1:1240,x2:1330,y:411}, {x:2020,x1:2020,x2:2100,y:411} ],
+      checkpoints: [ {x:640,y:392}, {x:1070,y:392}, {x:1910,y:392} ],
+      flag: { x: 2145, y: 380 },
     },
     {
+      width: 2400,
       spawn: { x: 40, y: 380 },
+      cat: { x: 60, y: 408 },
       platforms: [
-        { x: 0, y: 440, w: 180, h: 40 },
-        { x: 190, y: 380, w: 100, h: 16 },
-        { x: 320, y: 440, w: 150, h: 40 },
-        { x: 540, y: 440, w: 120, h: 40 },
-        { x: 740, y: 440, w: 60, h: 40 },
-        { x: 680, y: 350, w: 100, h: 16 },
-        { x: 590, y: 260, w: 110, h: 16 },
-        { x: 650, y: 170, w: 110, h: 16 },
+        { x: 0, y: 440, w: 320, h: 40 },
+        { x: 330, y: 385, w: 110, h: 16 },
+        { x: 460, y: 440, w: 260, h: 40 },
+        { x: 730, y: 385, w: 110, h: 16 },
+        { x: 860, y: 440, w: 220, h: 40 },
+        { x: 1090, y: 380, w: 110, h: 16 },
+        { x: 1220, y: 440, w: 260, h: 40 },
+        { x: 1490, y: 385, w: 110, h: 16 },
+        { x: 1620, y: 440, w: 780, h: 40 },
+        { x: 1750, y: 360, w: 130, h: 16 },
+        { x: 1950, y: 280, w: 130, h: 16 },
+        { x: 2150, y: 200, w: 130, h: 16 },
       ],
-      coins: [ {x:60,y:405},{x:235,y:340},{x:350,y:400},{x:400,y:395},{x:590,y:400},{x:765,y:400},{x:725,y:310},{x:645,y:220},{x:700,y:130},{x:740,y:130} ],
-      spikes: [ { x: 380, y: 420, w: 36, h: 20 }, { x: 575, y: 420, w: 28, h: 20 } ],
-      flag: { x: 690, y: 110 },
+      coins: [ {x:250,y:400},{x:380,y:345},{x:505,y:400},{x:780,y:345},{x:910,y:400},{x:1140,y:340},{x:1540,y:345},{x:1720,y:400},{x:1810,y:320},{x:2010,y:240},{x:2250,y:160},{x:2270,y:160} ],
+      spikes: [ { x: 530, y: 420, w: 28, h: 20 }, { x: 630, y: 420, w: 36, h: 20 }, { x: 1010, y: 420, w: 28, h: 20 }, { x: 1345, y: 420, w: 28, h: 20 }, { x: 1420, y: 420, w: 36, h: 20 } ],
+      enemies: [ {x:180,x1:120,x2:300,y:411}, {x:345,x1:345,x2:405,y:358}, {x:875,x1:875,x2:1000,y:411}, {x:1235,x1:1235,x2:1330,y:411}, {x:1700,x1:1700,x2:1780,y:411}, {x:1765,x1:1765,x2:1860,y:333} ],
+      checkpoints: [ {x:480,y:392}, {x:900,y:392}, {x:1245,y:392}, {x:1652,y:392} ],
+      flag: { x: 2195, y: 140 },
     },
   ];
 
   const GRAV = 0.55, MOVE = 1.1, MAX_VX = 4.2, JUMP = 11.5, FRICTION = 0.72, MAX_FALL = 12, LAND_TOL = 4;
   const COIN_R = 16;
   const PLAYER_W = 30, PLAYER_H = 38;
+  const ENEMY_SPEED = 1.2;
 
   let state = 'menu';
   let levelIdx = 0;
   let score = 0;
-  let best = 0;
-  const keys = { left: false, right: false, jump: false };
+  let camX = 0, time = 0, flashText = null;
 
-  let player, platforms, coins, spikes, flag, collected, time = 0, jumps = 0;
+  let player, lvl, platforms, coins, spikes, flag, collected, enemies, checkpoints, cat;
+  let totem = false, curCp = null, cpSnap = null;
 
   function loadLevel(i) {
-    const L = LEVELS[i];
-    player = { x: L.spawn.x, y: L.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
-    platforms = L.platforms;
-    collected = L.coins.map(() => false);
-    coins = L.coins;
-    spikes = L.spikes || [];
-    flag = L.flag;
-    jumps = 0;
+    lvl = LEVELS[i];
+    platforms = lvl.platforms;
+    coins = lvl.coins;
+    spikes = lvl.spikes || [];
+    flag = lvl.flag;
+    collected = coins.map(() => false);
+    cpSnap = { collected: collected.slice(), score };
+    curCp = { x: lvl.spawn.x, y: lvl.spawn.y };
+    totem = false;
+    player = { x: lvl.spawn.x, y: lvl.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
+    enemies = (lvl.enemies || []).map(e => ({ ...e, w: 28, h: 26, dir: 1, dead: false }));
+    checkpoints = (lvl.checkpoints || []).map(c => ({ ...c, active: false }));
+    cat = { ...lvl.cat, w: 44, h: 36, given: false };
+    camX = 0;
+    updateHud();
   }
 
   function rectsHit(a, b, pad = 0) {
@@ -234,8 +266,27 @@
            a.y + pad < b.y + b.h && a.y + a.h - pad > b.y;
   }
 
+  function respawnAtCp() {
+    player.x = curCp.x;
+    player.y = curCp.y;
+    player.vx = 0;
+    player.vy = 0;
+  }
+
+  function tryPet() {
+    if (state !== 'play') return;
+    const near = Math.abs((player.x + player.w / 2) - (cat.x + cat.w / 2)) < 80 &&
+                 Math.abs((player.y + player.h) - (cat.y + cat.h)) < 70;
+    if (!near) return;
+    if (cat.given) { flash('Мур...', 40); return; }
+    cat.given = true;
+    totem = true;
+    flash('Мур! Тотем бессмертия твой!', 140);
+    updateHud();
+  }
+
   function update() {
-    time += 1/60;
+    time += 1 / 60;
 
     player.vy += GRAV;
     player.vy = Math.min(player.vy, MAX_FALL);
@@ -243,17 +294,15 @@
     if (keys.right) { player.vx += MOVE; player.face = 1; }
     if (!keys.left && !keys.right) player.vx *= FRICTION;
     player.vx = Math.max(-MAX_VX, Math.min(MAX_VX, player.vx));
-
     if (keys.jump && player.onGround) {
       player.vy = -JUMP;
       player.onGround = false;
-      jumps++;
     }
     keys.jump = false;
 
     player.x += player.vx;
     player.y += player.vy;
-    player.x = Math.max(0, Math.min(W - player.w, player.x));
+    player.x = Math.max(0, Math.min(lvl.width - player.w, player.x));
 
     const body = { x: player.x, y: player.y, w: player.w, h: player.h };
     player.onGround = false;
@@ -271,14 +320,31 @@
         } else {
           player.x = player.x < p.x + p.w / 2 ? p.x - player.w : p.x + p.w;
         }
-        player.x = Math.max(0, Math.min(W - player.w, player.x));
+        player.x = Math.max(0, Math.min(lvl.width - player.w, player.x));
         body.x = player.x; body.y = player.y;
       }
     }
 
-    if (player.y > H + 60) { die('Упал в пропасть!'); return; }
+    if (player.y > H + 60) {
+      if (totem) { respawnAtCp(); flash('Тотем спас тебя!', 100); }
+      else die('Упал в пропасть!');
+      return;
+    }
 
-    for (const s of spikes) if (rectsHit(body, s, 8)) { die('Напоролся на шипы!'); return; }
+    for (const s of spikes) {
+      if (rectsHit(body, s, 8) && !totem) { die('Напоролся на шипы!'); return; }
+    }
+
+    for (const e of enemies) {
+      if (e.dead) continue;
+      e.x += e.dir * ENEMY_SPEED;
+      if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
+      if (e.x + e.w > e.x2) { e.x = e.x2 - e.w; e.dir = -1; }
+      if (rectsHit(body, e, 2)) {
+        if (totem) { e.dead = true; flash('Враг повержен!', 60); }
+        else { die('Враг тебя поймал!'); return; }
+      }
+    }
 
     coins.forEach((c, i) => {
       if (collected[i]) return;
@@ -286,36 +352,52 @@
       if (rectsHit(body, cr)) { collected[i] = true; score++; updateHud(); }
     });
 
-    if (score > best) best = score;
+    for (const c of checkpoints) {
+      if (c.active) continue;
+      const cr = { x: c.x - 6, y: c.y, w: 44, h: 48 };
+      if (rectsHit(body, cr)) {
+        c.active = true;
+        curCp = { x: c.x, y: c.y + 48 - player.h };
+        cpSnap = { collected: collected.slice(), score };
+        flash('Чекпоинт!', 60);
+      }
+    }
 
-    const fx = { x: flag.x, y: flag.y, w: 40, h: 60 };
-    if (rectsHit(body, fx, 4)) {
+    const fbox = { x: flag.x, y: flag.y, w: 40, h: 60 };
+    if (rectsHit(body, fbox, 4)) {
       if (levelIdx + 1 < LEVELS.length) {
         levelIdx++;
         loadLevel(levelIdx);
-        updateHud();
-        flash('Уровень ' + (levelIdx + 1) + '!');
+        flash('Уровень ' + (levelIdx + 1) + '!', 80);
       } else {
         state = 'win';
         showOverlay('Победа!', 'Все уровни пройдены 🎉<br>Монет собрано: ' + score,
-          'Играть снова', () => { score = 0; levelIdx = 0; loadLevel(0); updateHud(); state = 'play'; hideOverlay(); });
+          'Играть снова', () => { score = 0; levelIdx = 0; loadLevel(0); state = 'play'; hideOverlay(); });
       }
     }
   }
 
-  function die(cause = 'Ой!') {
+  function die(cause) {
     state = 'dead';
-    score -= collectedCountOnLevel();
-    if (score < 0) score = 0;
+    collected = cpSnap.collected.slice();
+    score = cpSnap.score;
     updateHud();
     flash(cause, 130);
     setTimeout(() => {
-      loadLevel(levelIdx);
+      respawnAtCp();
       state = 'play';
     }, 600);
   }
 
-  let flashText = null;
+  function restart() {
+    if (state === 'menu') return;
+    collected = cpSnap.collected.slice();
+    score = cpSnap.score;
+    updateHud();
+    respawnAtCp();
+    state = 'play';
+  }
+
   function flash(t, life = 70) { flashText = { text: t, life }; }
 
   function roundRect(x, y, w, h, r) {
@@ -328,22 +410,62 @@
     ctx.closePath();
   }
 
-  function draw() {
-    ctx.clearRect(0, 0, W, H);
+  function drawCoin(x, y) {
+    ctx.fillStyle = COLORS.coin;
+    ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COLORS.bg;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2); ctx.fill();
+  }
 
-    for (let i = 0; i < coins.length; i++) {
-      if (collected[i]) continue;
-      const c = coins[i];
-      const wob = Math.sin(Date.now() / 250 + i * 1.3) * 3;
+  function drawCat() {
+    const c = cat;
+    ctx.strokeStyle = COLORS.cat;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(c.x + 2, c.y + 20);
+    ctx.quadraticCurveTo(c.x - 14, c.y + 10, c.x - 8, c.y - 2);
+    ctx.stroke();
+    ctx.fillStyle = COLORS.cat;
+    roundRect(c.x, c.y + 8, 28, 22, 8); ctx.fill();
+    ctx.beginPath(); ctx.arc(c.x + 30, c.y + 8, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(c.x + 21, c.y + 1); ctx.lineTo(c.x + 23, c.y - 9); ctx.lineTo(c.x + 28, c.y + 0);
+    ctx.moveTo(c.x + 33, c.y + 0); ctx.lineTo(c.x + 37, c.y - 9); ctx.lineTo(c.x + 39, c.y + 1);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(c.x + 27, c.y + 7, 3, 0, Math.PI * 2);
+    ctx.arc(c.x + 34, c.y + 7, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2b3a55';
+    ctx.beginPath();
+    ctx.arc(c.x + 27, c.y + 7, 1.4, 0, Math.PI * 2);
+    ctx.arc(c.x + 34, c.y + 7, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    if (c.given) {
       ctx.fillStyle = COLORS.coin;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y + wob, 10, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = COLORS.bg;
-      ctx.beginPath();
-      ctx.arc(c.x, c.y + wob, 5, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(c.x + 30, c.y - 14, 7, 0, Math.PI * 2); ctx.fill();
+    } else if (state === 'play') {
+      const near = Math.abs((player.x + player.w / 2) - (c.x + c.w / 2)) < 80;
+      if (near) {
+        ctx.fillStyle = '#5b6b87';
+        ctx.font = 'bold 13px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('погладь: ' + ('ontouchstart' in window ? '🐾' : 'E'), c.x + 22, c.y - 18);
+        ctx.textAlign = 'left';
+      }
     }
+  }
+
+  function drawWorld() {
+    camX = Math.max(0, Math.min(lvl.width - W, player.x + player.w / 2 - W * 0.45));
+    ctx.save();
+    ctx.translate(-camX, 0);
+
+    coins.forEach((c, i) => {
+      if (collected[i]) return;
+      drawCoin(c.x, c.y + Math.sin(time * 4 + i * 1.3) * 3);
+    });
 
     for (const p of platforms) {
       ctx.fillStyle = COLORS.platform;
@@ -365,32 +487,81 @@
       }
     }
 
-    const f = flag;
+    for (const c of checkpoints) {
+      ctx.fillStyle = c.active ? COLORS.flag : '#9aa8bf';
+      ctx.fillRect(c.x, c.y, 5, 48);
+      ctx.beginPath();
+      const fx = c.x + 5, fy = c.y + 3;
+      ctx.moveTo(fx, fy);
+      ctx.lineTo(fx + (c.active ? 30 : 20), fy + 10);
+      ctx.lineTo(fx, fy + 21);
+      ctx.closePath();
+      ctx.fill();
+    }
+
     ctx.fillStyle = COLORS.flag;
-    ctx.fillRect(f.x + 2, f.y, 6, 60);
+    ctx.fillRect(flag.x + 2, flag.y, 6, 60);
     ctx.beginPath();
-    ctx.moveTo(f.x + 8, f.y + 4);
-    ctx.lineTo(f.x + 40, f.y + 15);
-    ctx.lineTo(f.x + 8, f.y + 28);
+    ctx.moveTo(flag.x + 8, flag.y + 4);
+    ctx.lineTo(flag.x + 40, flag.y + 15);
+    ctx.lineTo(flag.x + 8, flag.y + 28);
     ctx.closePath();
     ctx.fill();
 
+    for (const e of enemies) {
+      if (e.dead) continue;
+      const bob = Math.sin(time * 9 + e.x) * 2;
+      ctx.fillStyle = COLORS.enemy;
+      roundRect(e.x, e.y + bob, e.w, e.h, 9);
+      ctx.fill();
+      const ex = e.dir === 1 ? e.x + e.w - 17 : e.x + 5;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(ex + 5, e.y + 10 + bob, 4, 0, Math.PI * 2);
+      ctx.arc(ex - 1, e.y + 10 + bob, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#2b3a55';
+      ctx.beginPath();
+      ctx.arc(ex + 5 + e.dir, e.y + 10 + bob, 1.8, 0, Math.PI * 2);
+      ctx.arc(ex - 1 + e.dir, e.y + 10 + bob, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#2b3a55';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(ex - 6, e.y + 3 + bob); ctx.lineTo(ex - 1, e.y + 6 + bob);
+      ctx.moveTo(ex + 12, e.y + 3 + bob); ctx.lineTo(ex + 7, e.y + 6 + bob);
+      ctx.stroke();
+    }
+
+    drawCat();
+
     const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
-    ctx.fillStyle = COLORS.player;
-    roundRect(player.x, player.y + (state === 'menu' ? bob : 0), player.w, player.h, 8);
+    ctx.fillStyle = totem ? '#e0a800' : COLORS.player;
+    roundRect(player.x, player.y + bob, player.w, player.h, 8);
     ctx.fill();
-    ctx.fillStyle = '#fff';
+    if (totem) {
+      ctx.fillStyle = COLORS.bgtotem || '#fff';
+      ctx.font = '14px sans-serif';
+      ctx.fillText('🐾', player.x + 8, player.y - 6);
+    }
     const ex = player.x + (player.face === 1 ? player.w - 16 : 6);
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.arc(ex + 5, player.y + 12 + (state === 'menu' ? bob : 0), 3.4, 0, Math.PI * 2);
-    ctx.arc(ex - 1, player.y + 12 + (state === 'menu' ? bob : 0), 3.4, 0, Math.PI * 2);
+    ctx.arc(ex + 5, player.y + 12 + bob, 3.4, 0, Math.PI * 2);
+    ctx.arc(ex - 1, player.y + 12 + bob, 3.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#2b3a55';
     ctx.beginPath();
-    ctx.arc(ex + 5 + player.face, player.y + 12 + (state === 'menu' ? bob : 0), 1.5, 0, Math.PI * 2);
-    ctx.arc(ex - 1 + player.face, player.y + 12 + (state === 'menu' ? bob : 0), 1.5, 0, Math.PI * 2);
+    ctx.arc(ex + 5 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
+    ctx.arc(ex - 1 + player.face, player.y + 12 + bob, 1.5, 0, Math.PI * 2);
     ctx.fill();
 
+    ctx.restore();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    drawWorld();
     if (flashText) {
       ctx.font = flashText.text.length > 4 ? 'bold 30px Segoe UI, system-ui, sans-serif' : 'bold 44px Segoe UI, system-ui, sans-serif';
       ctx.fillStyle = 'rgba(43,58,85,' + Math.min(1, flashText.life / 30) + ')';
@@ -405,10 +576,12 @@
   const overlay = document.getElementById('overlay');
   const scoreEl = document.getElementById('score');
   const levelEl = document.getElementById('level');
+  const totemEl = document.getElementById('totem');
 
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
     levelEl.textContent = 'Уровень ' + (levelIdx + 1);
+    totemEl.style.display = totem ? 'inline-block' : 'none';
   }
 
   function showOverlay(title, text, btn, action) {
@@ -421,40 +594,38 @@
   function hideOverlay() { overlay.classList.add('hidden'); }
 
   function start() {
-    score = 0; levelIdx = 0; loadLevel(0); updateHud();
+    score = 0; levelIdx = 0; loadLevel(0);
     state = 'play'; hideOverlay();
   }
   document.getElementById('startBtn').onclick = start;
 
+  const keys = { left: false, right: false, jump: false };
   document.addEventListener('keydown', e => {
     if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = true;
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = true;
     if (['ArrowUp','KeyW','Space'].includes(e.code)) {
       keys.jump = true;
       e.preventDefault();
-      if (state === 'menu' || state === 'win') start();
+      if (state !== 'play') start();
     }
-    if (e.code === 'KeyR' && state !== 'menu') {
-      score -= collectedCountOnLevel();
-      if (score < 0) score = 0;
-      loadLevel(levelIdx);
-      updateHud();
-    }
+    if (e.code === 'KeyE') tryPet();
+    if (e.code === 'KeyR') restart();
   });
   document.addEventListener('keyup', e => {
     if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = false;
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = false;
   });
 
-  function collectedCountOnLevel() {
-    return collected ? collected.filter(Boolean).length : 0;
-  }
-
   const isTouch = 'ontouchstart' in window;
   if (isTouch) document.body.classList.add('touch');
   document.querySelectorAll('#touch div').forEach(el => {
     const k = el.dataset.k;
-    const on = e => { e.preventDefault(); if (k === 'jump') { if (state !== 'play') start(); keys.jump = true; } else keys[k] = true; };
+    const on = e => {
+      e.preventDefault();
+      if (k === 'jump') { if (state !== 'play') start(); keys.jump = true; }
+      else if (k === 'pet') tryPet();
+      else keys[k] = true;
+    };
     const off = e => { e.preventDefault(); if (k !== 'jump') keys[k] = false; };
     el.addEventListener('touchstart', on, { passive: false });
     el.addEventListener('touchend', off, { passive: false });
@@ -468,15 +639,11 @@
     const wrap = document.getElementById('wrap');
     wrap.style.width = W * scale + 'px';
     wrap.style.height = H * scale + 'px';
-    const hud = document.getElementById('hud');
-    hud.style.fontSize = 18 * scale + 'px';
-    overlay.style.fontSize = '';
   }
   window.addEventListener('resize', resize);
   resize();
 
   loadLevel(0);
-  updateHud();
 
   (function loop() {
     if (state === 'play') update();
