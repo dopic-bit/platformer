@@ -317,6 +317,7 @@
   let score = 0;
   let camX = 0, time = 0, flashText = null, shake = 0, muzzleT = 0;
   let deathT = 0, appearT = 0, saveT = 0, lastSafe = null;
+  let angel = null;
   let particles = [];
   let splats = [];
 
@@ -345,6 +346,7 @@
     splats = [];
     appearT = 24;
     saveT = 0;
+    angel = null;
     lastSafe = { x: lvl.spawn.x, y: lvl.spawn.y };
     updateHud();
   }
@@ -409,6 +411,7 @@
     if (cat.given) { flash('Мур...', 40); return; }
     cat.given = true;
     totem = true;
+    angel = { t: 0, sparkled: false };
     flash('Мур! Тотем бессмертия твой!', 140);
     updateHud();
   }
@@ -495,6 +498,15 @@
     muzzleT = Math.max(0, muzzleT - 1);
     appearT = Math.max(0, appearT - 1);
     saveT = Math.max(0, saveT - 1);
+    if (angel) {
+      angel.t++;
+      if (angel.t === 55 && !angel.sparkled) {
+        angel.sparkled = true;
+        spawnParticles(player.x + player.w / 2, player.y + 5, '#ffcf3f', 12, 6, 3);
+        spawnParticles(player.x + player.w / 2, player.y + 5, '#fff8d0', 8, 5, 3);
+      }
+      if (angel.t > 110) angel = null;
+    }
     updateParticles();
 
     const prevOnGround = player.onGround;
@@ -710,7 +722,7 @@
     const x = p.x;
     let y = p.y + bob;
     const w = p.w, h = p.h;
-    const dark = totem ? '#d8a017' : '#d92b22';
+    const dark = '#d92b22';
     const outline = '#1a1a1a';
     const moving = p.onGround && Math.abs(p.vx) > 0.3;
     const phase = time * 13;
@@ -756,9 +768,9 @@
     }
 
     const bg = ctx.createRadialGradient(cx - 6, y + 9, 3, cx, y + 15, 24);
-    bg.addColorStop(0, totem ? '#ffd257' : '#ff5748');
-    bg.addColorStop(0.55, totem ? '#eab021' : '#ee332a');
-    bg.addColorStop(1, totem ? '#c68a12' : '#c22420');
+    bg.addColorStop(0, '#ff5748');
+    bg.addColorStop(0.55, '#ee332a');
+    bg.addColorStop(1, '#c22420');
     ctx.fillStyle = bg;
     roundRect(x, y, w, 30, 14);
     ctx.fill();
@@ -819,7 +831,7 @@
     ctx.fillStyle = '#1a1a1a';
     roundRect(31, -2.5, 4, 5, 1.5);
     ctx.fill();
-    ctx.fillStyle = '#2C2C2C';
+    ctx.fillStyle = '#8B5A2B';
     roundRect(13, 1.5, 14, 6, 2);
     ctx.fill();
     ctx.stroke();
@@ -876,18 +888,18 @@
     }
 
     if (totem) {
-      const tx = cx - f * 13 + Math.sin(time * 4) * 1;
+      const tx = cx - f * 17 + Math.sin(time * 4) * 1;
       const ty = y + 20 + Math.cos(time * 4) * 1;
       ctx.strokeStyle = outline;
       ctx.lineWidth = 6;
       ctx.beginPath();
-      ctx.moveTo(cx - f * 7, y + 16);
+      ctx.moveTo(cx - f * 8, y + 16);
       ctx.lineTo(tx + f * 5, ty - 4);
       ctx.stroke();
       ctx.strokeStyle = dark;
       ctx.lineWidth = 3.5;
       ctx.beginPath();
-      ctx.moveTo(cx - f * 7, y + 16);
+      ctx.moveTo(cx - f * 8, y + 16);
       ctx.lineTo(tx + f * 5, ty - 4);
       ctx.stroke();
       ctx.strokeStyle = outline;
@@ -931,6 +943,92 @@
       ctx.arc(cx, y + 15, rr, 0, Math.PI * 2);
       ctx.stroke();
       ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function drawAngel() {
+    if (!angel) return;
+    const t = angel.t;
+    const px = player.x + player.w / 2;
+    let dy = 0, a = 1;
+    if (t < 40) {
+      const k = 1 - t / 40;
+      dy = -95 * k * k;
+      a = Math.min(1, t / 12);
+    } else if (t < 70) {
+      dy = Math.sin(time * 6) * 3;
+    } else {
+      const u = t - 70;
+      dy = -(u * u) / 40;
+      if (t > 85) a = Math.max(0, 1 - (t - 85) / 25);
+    }
+    const ax = px + Math.sin(time * 2.5) * 5;
+    const ay = player.y - 62 + dy;
+
+    ctx.save();
+    const glow = ctx.createRadialGradient(ax, ay, 2, ax, ay, 46);
+    glow.addColorStop(0, 'rgba(255,250,220,' + (0.5 * a) + ')');
+    glow.addColorStop(1, 'rgba(255,240,180,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(ax, ay, 46, 0, Math.PI * 2);
+    ctx.fill();
+
+    const flap = Math.sin(time * 9) * 0.25;
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.85 * a) + ')';
+    ctx.strokeStyle = 'rgba(190,180,150,' + (0.6 * a) + ')';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.ellipse(ax - 12, ay - 2, 11, 5, -0.7 - flap, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(ax + 12, ay - 2, 11, 5, 0.7 + flap, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.95 * a) + ')';
+    ctx.beginPath();
+    ctx.moveTo(ax - 8, ay - 10);
+    ctx.quadraticCurveTo(ax, ay - 16, ax + 8, ay - 10);
+    ctx.lineTo(ax + 6, ay + 14);
+    ctx.lineTo(ax - 6, ay + 14);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ax, ay - 13, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,207,63,' + a + ')';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.ellipse(ax, ay - 22, 7, 2.5, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    if (t >= 25 && t < 80) {
+      const ta = Math.min(1, (t - 25) / 10) * Math.min(1, (80 - t) / 10) * a;
+      ctx.globalAlpha = Math.max(0, ta);
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 1.5;
+      ctx.fillStyle = '#ffcf3f';
+      roundRect(ax - 5, ay + 8, 10, 10, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = '#1f9e5a';
+      ctx.beginPath();
+      ctx.arc(ax - 2, ay + 13, 1.4, 0, Math.PI * 2);
+      ctx.arc(ax + 2, ay + 13, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (angel.t >= 50 && angel.t < 60) {
+      ctx.fillStyle = 'rgba(255,240,180,' + (0.25 * a) + ')';
+      ctx.beginPath();
+      ctx.arc(px, player.y + 15, 26 + (angel.t - 50) * 4, 0, Math.PI * 2);
+      ctx.fill();
     }
     ctx.restore();
   }
@@ -1088,6 +1186,7 @@
     }
 
     drawPlayer();
+    drawAngel();
 
     for (const p of particles) {
       ctx.globalAlpha = Math.max(0, Math.min(1, p.life / 25));
