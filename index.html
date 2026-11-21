@@ -310,7 +310,7 @@
   const COIN_R = 16;
   const PLAYER_W = 30, PLAYER_H = 38;
   const ENEMY_SPEED = 1.2;
-  const BULLET_SPEED = 10, START_AMMO = 3;
+  const BULLET_SPEED = 10, START_AMMO = 10;
 
   let state = 'menu';
   let levelIdx = 0;
@@ -333,7 +333,6 @@
     cpSnap = { collected: collected.slice(), score };
     curCp = { x: lvl.spawn.x, y: lvl.spawn.y };
     totem = false;
-    ammo = START_AMMO;
     player = { x: lvl.spawn.x, y: lvl.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
     enemies = (lvl.enemies || []).map((e, i) => ({ ...e, w: 28, h: 26, dir: 1, dead: false, ph: i * 2.4 + Math.random() }));
     checkpoints = (lvl.checkpoints || []).map(c => ({ ...c, active: false }));
@@ -573,7 +572,7 @@
       } else {
         state = 'win';
         showOverlay('Победа!', 'Все уровни пройдены 🎉<br>Монет собрано: ' + score,
-          'Играть снова', () => { score = 0; levelIdx = 0; loadLevel(0); state = 'play'; hideOverlay(); });
+          'Играть снова', () => { score = 0; levelIdx = 0; ammo = START_AMMO; loadLevel(0); state = 'play'; hideOverlay(); });
       }
     }
   }
@@ -994,7 +993,7 @@
   function hideOverlay() { overlay.classList.add('hidden'); }
 
   function start() {
-    score = 0; levelIdx = 0; loadLevel(0);
+    score = 0; levelIdx = 0; ammo = START_AMMO; loadLevel(0);
     state = 'play'; hideOverlay();
   }
   document.getElementById('startBtn').onclick = start;
@@ -1036,7 +1035,12 @@
   });
 
   function resize() {
-    const scale = Math.min(window.innerWidth / (W + 40), window.innerHeight / (H + 40), 1);
+    const scale = Math.min(window.innerWidth / (W + 40), window.innerHeight / (H + 40), 3);
+    const dpr = window.devicePixelRatio || 1;
+    cv.width = Math.round(W * scale * dpr);
+    cv.height = Math.round(H * scale * dpr);
+    ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+    ctx.imageSmoothingEnabled = true;
     cv.style.width = W * scale + 'px';
     cv.style.height = H * scale + 'px';
     const wrap = document.getElementById('wrap');
