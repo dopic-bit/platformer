@@ -683,14 +683,15 @@
     const f = p.face;
     const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
     const x = p.x, y = p.y + bob, w = p.w, h = p.h;
-    const bodyCol = totem ? '#e0a800' : '#ee332a';
+    const dark = totem ? '#d8a017' : '#d92b22';
     const outline = '#1a1a1a';
     const moving = p.onGround && Math.abs(p.vx) > 0.3;
     const phase = time * 13;
     const swing = moving ? Math.sin(phase) * (Math.abs(p.vx) / MAX_VX) * 5 : 0;
-    const gy = y + 16;
+    const gy = y + 13;
     const cx = x + w / 2;
     const leg = (lx, ly) => {
+      ctx.fillStyle = dark;
       roundRect(lx, ly, 9, 12, 4.5);
       ctx.fill();
       ctx.stroke();
@@ -699,7 +700,6 @@
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
-    ctx.fillStyle = bodyCol;
     ctx.strokeStyle = outline;
     ctx.lineWidth = 2.5;
 
@@ -711,61 +711,71 @@
       leg(x + w - 11, y + 26);
     }
 
+    const bg = ctx.createRadialGradient(cx - 6, y + 9, 3, cx, y + 15, 24);
+    bg.addColorStop(0, totem ? '#ffd257' : '#ff5748');
+    bg.addColorStop(0.55, totem ? '#eab021' : '#ee332a');
+    bg.addColorStop(1, totem ? '#c68a12' : '#c22420');
+    ctx.fillStyle = bg;
     roundRect(x, y, w, 30, 14);
     ctx.fill();
     ctx.stroke();
 
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath();
+    ctx.ellipse(cx - 7, y + 8, 6, 3.5, -0.4, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.save();
-    ctx.translate(cx, gy);
+    ctx.translate(cx + f * 6, gy);
     ctx.scale(f, 1);
+    ctx.rotate(-0.07);
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = outline;
     ctx.fillStyle = '#8B5A2B';
     ctx.beginPath();
-    ctx.moveTo(-2, -3);
-    ctx.quadraticCurveTo(-13, 1, -13, 11);
-    ctx.lineTo(-4, 9);
+    ctx.moveTo(-1, -2);
+    ctx.quadraticCurveTo(-12, 2, -11, 11);
+    ctx.lineTo(-3, 9);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#2C2C2C';
-    roundRect(-3, -4, 11, 9, 2);
+    roundRect(-1, -4, 10, 9, 2);
     ctx.fill();
     ctx.stroke();
-    roundRect(6, -2, 34, 4, 2);
+    roundRect(8, -2, 24, 4, 2);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = '#1a1a1a';
-    roundRect(37, -2.5, 4, 5, 1.5);
+    roundRect(31, -2.5, 4, 5, 1.5);
     ctx.fill();
     ctx.fillStyle = '#2C2C2C';
-    roundRect(14, 1.5, 14, 6, 2);
+    roundRect(13, 1.5, 14, 6, 2);
     ctx.fill();
     ctx.stroke();
     ctx.strokeStyle = 'rgba(0,0,0,.4)';
     ctx.beginPath();
-    ctx.moveTo(-2, 6);
-    ctx.lineTo(-3.5, 8);
+    ctx.moveTo(1, 6);
+    ctx.lineTo(-0.5, 8);
     ctx.stroke();
     ctx.restore();
 
     ctx.strokeStyle = outline;
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.moveTo(cx + f * 6, gy + 7);
+    ctx.moveTo(cx + f * 9, gy + 7);
     ctx.lineTo(cx + f * 22, gy + 5);
     ctx.stroke();
-    ctx.strokeStyle = bodyCol;
+    ctx.strokeStyle = dark;
     ctx.lineWidth = 4.5;
     ctx.beginPath();
-    ctx.moveTo(cx + f * 6, gy + 7);
+    ctx.moveTo(cx + f * 9, gy + 7);
     ctx.lineTo(cx + f * 22, gy + 5);
     ctx.stroke();
 
     if (muzzleT > 0) {
-      const mx = cx + f * 42, my = gy;
+      const mx = cx + f * 41, my = gy - 2;
       const k = muzzleT / 6;
       const fl = ctx.createRadialGradient(mx, my, 1, mx, my, 24 + 10 * k);
       fl.addColorStop(0, 'rgba(255,255,220,' + (0.95 * k).toFixed(2) + ')');
@@ -797,8 +807,41 @@
     }
 
     if (totem) {
-      ctx.font = '14px sans-serif';
-      ctx.fillText('🐾', x + 8, y - 8);
+      const tx = cx - f * 13 + Math.sin(time * 4) * 1;
+      const ty = y + 20 + Math.cos(time * 4) * 1;
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(cx - f * 7, y + 16);
+      ctx.lineTo(tx + f * 5, ty - 4);
+      ctx.stroke();
+      ctx.strokeStyle = dark;
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.moveTo(cx - f * 7, y + 16);
+      ctx.lineTo(tx + f * 5, ty - 4);
+      ctx.stroke();
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 1.8;
+      roundRect(tx - 6, ty - 11, 12, 11, 5);
+      ctx.stroke();
+      ctx.fillStyle = '#ffcf3f';
+      roundRect(tx - 6, ty - 11, 12, 11, 5);
+      ctx.fill();
+      ctx.strokeStyle = outline;
+      roundRect(tx - 6, ty - 11, 12, 11, 5);
+      ctx.stroke();
+      ctx.fillStyle = '#1f9e5a';
+      ctx.beginPath();
+      ctx.arc(tx - 2.5, ty - 6, 1.7, 0, Math.PI * 2);
+      ctx.arc(tx + 2.5, ty - 6, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#d9a516';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(tx - 6, ty - 4); ctx.lineTo(tx - 9, ty - 1);
+      ctx.moveTo(tx + 6, ty - 4); ctx.lineTo(tx + 9, ty - 1);
+      ctx.stroke();
     }
     const ex = cx + f * 3;
     ctx.fillStyle = '#fff';
