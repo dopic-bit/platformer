@@ -180,7 +180,7 @@
     },
   ];
 
-  const GRAV = 0.55, MOVE = 0.7, MAX_VX = 5.2, JUMP = 12.5, FRICTION = 0.84;
+  const GRAV = 0.55, MOVE = 0.7, MAX_VX = 5.2, JUMP = 12.5, FRICTION = 0.84, MAX_FALL = 12, LAND_TOL = 4;
   const PLAYER_W = 30, PLAYER_H = 38;
 
   let state = 'menu';
@@ -211,6 +211,7 @@
     time += 1/60;
 
     player.vy += GRAV;
+    player.vy = Math.min(player.vy, MAX_FALL);
     if (keys.left) { player.vx -= MOVE; player.face = -1; }
     if (keys.right) { player.vx += MOVE; player.face = 1; }
     if (!keys.left && !keys.right) player.vx *= FRICTION;
@@ -230,18 +231,20 @@
     const body = { x: player.x, y: player.y, w: player.w, h: player.h };
     player.onGround = false;
     for (const p of platforms) {
-      if (rectsHit(body, p, 6)) {
+      if (rectsHit(body, p)) {
         const prevBottom = player.y - player.vy + player.h;
-        if (player.vy >= 0 && prevBottom <= p.y + 4) {
+        const prevTop = player.y - player.vy;
+        if (player.vy >= 0 && prevBottom <= p.y + LAND_TOL) {
           player.y = p.y - player.h;
           player.vy = 0;
           player.onGround = true;
-        } else if (player.vy < 0 && player.y - player.vy >= p.y + p.h - 4) {
+        } else if (player.vy < 0 && prevTop >= p.y + p.h - LAND_TOL) {
           player.y = p.y + p.h;
           player.vy = 0;
         } else {
           player.x = player.x < p.x + p.w / 2 ? p.x - player.w : p.x + p.w;
         }
+        player.x = Math.max(0, Math.min(W - player.w, player.x));
         body.x = player.x; body.y = player.y;
       }
     }
