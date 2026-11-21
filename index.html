@@ -317,6 +317,7 @@
   let score = 0;
   let camX = 0, time = 0, flashText = null, shake = 0, muzzleT = 0;
   let particles = [];
+  let splats = [];
 
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
@@ -334,13 +335,14 @@
     totem = false;
     ammo = START_AMMO;
     player = { x: lvl.spawn.x, y: lvl.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
-    enemies = (lvl.enemies || []).map(e => ({ ...e, w: 28, h: 26, dir: 1, dead: false }));
+    enemies = (lvl.enemies || []).map((e, i) => ({ ...e, w: 28, h: 26, dir: 1, dead: false, ph: i * 2.4 + Math.random() }));
     checkpoints = (lvl.checkpoints || []).map(c => ({ ...c, active: false }));
     ammoBoxes = (lvl.ammo || []).map(a => ({ ...a, taken: false }));
     bullets = [];
     catPickups = { ...lvl.cat, w: 44, h: 36, given: false };
     camX = 0;
     particles = [];
+    splats = [];
     updateHud();
   }
 
@@ -354,6 +356,7 @@
     player.y = curCp.y;
     player.vx = 0;
     player.vy = 0;
+    keys.jump = false;
   }
 
   function saveDeath() {
@@ -394,13 +397,13 @@
   function fire() {
     if (state !== 'play' || ammo <= 0) return;
     ammo--;
-    muzzleT = 5;
+    muzzleT = 6;
     updateHud();
     bullets.push({
-      x: player.face === 1 ? player.x + player.w + 24 : player.x - 36,
-      y: player.y + 16, w: 12, h: 6, dir: player.face,
+      x: player.face === 1 ? player.x + player.w + 19 : player.x - 43,
+      y: player.y + 13, w: 12, h: 6, dir: player.face,
     });
-    spawnParticles(player.face === 1 ? player.x + player.w + 28 : player.x - 28, player.y + 17, '#ffc93c', 5, 4, 1);
+    spawnParticles(player.face === 1 ? player.x + player.w + 36 : player.x - 36, player.y + 15, '#ffc93c', 6, 4, 1);
   }
 
   function updateBullets() {
@@ -412,7 +415,8 @@
         if (!e.dead && rectsHit(b, e)) {
           e.dead = true; b.dead = true;
           shake = Math.max(shake, 3);
-          spawnParticles(e.x + e.w / 2, e.y + e.h / 2, COLORS.enemy, 14, 4, 3);
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
           break;
         }
       }
@@ -426,22 +430,42 @@
 
   function updateParticles() {
     for (const p of particles) {
-      p.vy += 0.15;
+      p.vy += p.blood ? 0.28 : 0.15;
+      const py = p.y;
       p.x += p.vx;
       p.y += p.vy;
       p.life--;
+      if (p.blood && p.vy > 0) {
+        for (const pl of platforms) {
+          if (p.x >= pl.x && p.x <= pl.x + pl.w && py <= pl.y && p.y >= pl.y) {
+            addSplat(p.x, pl.y);
+            p.life = 0;
+            break;
+          }
+        }
+      }
     }
     particles = particles.filter(p => p.life > 0);
   }
 
-  function spawnParticles(x, y, color, n, spread, up) {
+  function addSplat(x, y) {
+    const blobs = [];
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      blobs.push({ dx: (Math.random() - 0.5) * 16, dy: -Math.random() * 3, r: 1.5 + Math.random() * 3 });
+    }
+    splats.push({ x: x + (Math.random() - 0.5) * 4, y, r: 2.5 + Math.random() * 3, blobs, a: 0.5 + Math.random() * 0.3 });
+    if (splats.length > 160) splats.shift();
+  }
+
+  function spawnParticles(x, y, color, n, spread, up, blood) {
     for (let i = 0; i < n; i++) {
       particles.push({
         x, y,
-        vx: (Math.random() - 0.5) * spread,
-        vy: -(Math.random() * up + 0.5),
-        life: 18 + Math.random() * 16,
-        color, size: 1.5 + Math.random() * 2.5,
+        vx: (Math.random() - 0.5) * spread * (blood ? 1.8 : 1),
+        vy: -(Math.random() * up + (blood ? 0.8 : 0.5)),
+        life: blood ? 30 + Math.random() * 20 : 18 + Math.random() * 16,
+        color, size: 1.5 + Math.random() * 2.5, blood: !!blood,
       });
     }
   }
@@ -679,31 +703,73 @@
     }
 
     const gy = y + 14;
-    const gx = f === 1 ? x + w - 6 : x - 22;
+    const cx = x + w / 2;
     ctx.strokeStyle = skin;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(x + (f === 1 ? w - 10 : 10), gy + 2);
-    ctx.lineTo(f === 1 ? gx + 4 : gx + 22, gy + 2);
+    ctx.lineTo(cx + f * 10, gy + 4);
     ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, gy);
+    ctx.scale(f, 1);
+    ctx.fillStyle = '#7a5233';
+    ctx.beginPath();
+    ctx.moveTo(-4, 0);
+    ctx.lineTo(-15, 8);
+    ctx.lineTo(-4, 8);
+    ctx.closePath();
+    ctx.fill();
     ctx.fillStyle = '#2b3a55';
-    roundRect(gx, gy, 28, 5, 2);
+    roundRect(4, -3, 12, 9, 3);
+    ctx.fill();
+    ctx.fillStyle = '#3d4f6b';
+    roundRect(16, -1.5, 26, 4, 2);
+    ctx.fill();
+    ctx.fillStyle = '#1f2b40';
+    roundRect(40, -2.5, 4, 6, 1);
     ctx.fill();
     ctx.fillStyle = '#8d643b';
-    roundRect(f === 1 ? gx + 24 : gx - 4, gy - 1, 10, 7, 3);
+    roundRect(20, 2.5, 12, 5, 2);
     ctx.fill();
+    ctx.restore();
+
     ctx.fillStyle = skin;
-    roundRect(f === 1 ? gx + 15 : gx + 6, gy - 1, 7, 7, 3);
+    ctx.beginPath();
+    ctx.arc(cx + f * 8, gy + 5, 4, 0, Math.PI * 2);
+    ctx.arc(cx + f * 26, gy + 5, 4, 0, Math.PI * 2);
     ctx.fill();
 
     if (muzzleT > 0) {
-      const mx = f === 1 ? gx + 34 : gx - 8;
-      ctx.fillStyle = '#ffc93c';
+      const mx = cx + f * 46, my = gy;
+      const k = muzzleT / 6;
+      const fl = ctx.createRadialGradient(mx, my, 1, mx, my, 24 + 10 * k);
+      fl.addColorStop(0, 'rgba(255,255,220,' + (0.95 * k).toFixed(2) + ')');
+      fl.addColorStop(0.45, 'rgba(255,205,60,' + (0.65 * k).toFixed(2) + ')');
+      fl.addColorStop(1, 'rgba(255,120,0,0)');
+      ctx.fillStyle = fl;
       ctx.beginPath();
-      ctx.moveTo(mx, gy + 2.5);
-      ctx.lineTo(mx + f * 12, gy - 3);
-      ctx.lineTo(mx + f * 12, gy + 8);
+      ctx.arc(mx, my, 24 + 10 * k, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff8d0';
+      ctx.beginPath();
+      ctx.moveTo(mx + f * 18, my);
+      ctx.lineTo(mx + f * 5, my - 3);
+      ctx.lineTo(mx + f * 10, my - 7);
+      ctx.lineTo(mx + f * 3, my - 5);
+      ctx.lineTo(mx, my - 9);
+      ctx.lineTo(mx - f * 2, my - 4);
+      ctx.lineTo(mx - f * 6, my);
+      ctx.lineTo(mx - f * 2, my + 4);
+      ctx.lineTo(mx, my + 9);
+      ctx.lineTo(mx + f * 3, my + 5);
+      ctx.lineTo(mx + f * 10, my + 7);
+      ctx.lineTo(mx + f * 5, my + 3);
       ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(mx + f * 2, my, 4.5, 0, Math.PI * 2);
       ctx.fill();
     }
 
@@ -745,6 +811,18 @@
     });
 
     for (const p of platforms) drawPlatformMat(p);
+
+    for (const s of splats) {
+      ctx.fillStyle = 'rgba(122, 12, 12, ' + s.a.toFixed(2) + ')';
+      ctx.beginPath();
+      ctx.ellipse(s.x, s.y - 1, s.r + 2, s.r * 0.55, 0, 0, Math.PI * 2);
+      ctx.fill();
+      for (const b of s.blobs) {
+        ctx.beginPath();
+        ctx.arc(s.x + b.dx, s.y - 1 + b.dy, b.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
 
     for (const box of ammoBoxes) {
       if (box.taken) continue;
@@ -798,7 +876,7 @@
 
     for (const e of enemies) {
       if (e.dead) continue;
-      const bob = Math.sin(time * 9 + e.x) * 2;
+      const bob = Math.sin(time * 5 + e.ph) * 1.5;
       ctx.fillStyle = COLORS.enemy;
       roundRect(e.x, e.y + bob, e.w, e.h, 9);
       ctx.fill();
@@ -928,7 +1006,7 @@
     if (['ArrowUp','KeyW','Space'].includes(e.code)) {
       keys.jump = true;
       e.preventDefault();
-      if (state !== 'play') start();
+      if (state === 'menu') start();
     }
     if (['KeyX','KeyF'].includes(e.code)) fire();
     if (e.code === 'KeyE') tryPet();
@@ -946,7 +1024,7 @@
     const k = el.dataset.k;
     const on = e => {
       e.preventDefault();
-      if (k === 'jump') { if (state !== 'play') start(); keys.jump = true; }
+      if (k === 'jump') { if (state === 'menu') start(); keys.jump = true; }
       else if (k === 'pet') tryPet();
       else if (k === 'gun') fire();
       else keys[k] = true;
