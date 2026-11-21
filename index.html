@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Мини-платформер</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #fafafa;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: none;
+  }
+  #wrap {
+    position: relative;
+  }
+  canvas {
+    display: block;
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,.12);
+    background: #eaf4ff;
+  }
+  #hud {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    right: 16px;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: 18px;
+    color: #2b3a55;
+    pointer-events: none;
+  }
+  #overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(250,250,250,.86);
+    border-radius: 16px;
+    color: #2b3a55;
+    text-align: center;
+    cursor: pointer;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 { font-size: 34px; letter-spacing: .5px; }
+  #overlay p { font-size: 16px; color: #5b6b87; line-height: 1.6; }
+  #overlay .btn {
+    margin-top: 6px;
+    padding: 12px 30px;
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-size: 17px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform .12s;
+  }
+  #overlay .btn:hover { transform: scale(1.05); }
+  #hint {
+    position: absolute;
+    bottom: 12px;
+    width: 100%;
+    text-align: center;
+    color: #9aa8bf;
+    font-size: 13px;
+    pointer-events: none;
+  }
+  #touch {
+    position: absolute;
+    inset: 0;
+    display: none;
+  }
+  #touch div {
+    position: absolute;
+    bottom: 16px;
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: rgba(43,58,85,.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    color: #2b3a55;
+    user-select: none;
+  }
+  #touch .left { left: 16px; }
+  #touch .right { left: 104px; }
+  #touch .jump { right: 16px; }
+  body.touch #touch { display: block; }
+  body.touch #hint { display: none; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="game" width="800" height="480"></canvas>
+  <div id="hud"><span id="score">Монеты: 0</span><span id="level">Уровень 1</span></div>
+  <div id="overlay">
+    <h1>Мини-платформер</h1>
+    <p>← → или A/D — движение<br>↑ / W / Пробел — прыжок<br>Собери все монеты и доберись до флага</p>
+    <button class="btn" id="startBtn">Играть</button>
+  </div>
+  <div id="touch">
+    <div class="left" data-k="left">←</div>
+    <div class="right" data-k="right">→</div>
+    <div class="jump" data-k="jump">↑</div>
+  </div>
+  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; R — заново</div>
+</div>
+
+<script>
+(() => {
+  const W = 800, H = 480;
+  const cv = document.getElementById('game');
+  const ctx = cv.getContext('2d');
+
+  const COLORS = {
+    bg: '#eaf4ff',
+    ground: '#2b3a55',
+    platform: '#40527a',
+    player: '#ff6b6b',
+    coin: '#ffc93c',
+    flag: '#4ecdc4',
+    spike: '#5b6b87',
+    text: '#2b3a55',
+  };
+
+  const LEVELS = [
+    {
+      spawn: { x: 60, y: 380 },
+      platforms: [
+        { x: 0, y: 440, w: 800, h: 40 },
+        { x: 180, y: 350, w: 150, h: 16 },
+        { x: 420, y: 280, w: 130, h: 16 },
+        { x: 640, y: 210, w: 130, h: 16 },
+      ],
+      coins: [ {x:240,y:310},{x:290,y:310},{x:470,y:240},{x:510,y:240},{x:690,y:170},{x:730,y:170} ],
+      spikes: [ { x: 360, y: 420, w: 40, h: 20 } ],
+      flag: { x: 720, y: 170 },
+    },
+    {
+      spawn: { x: 50, y: 380 },
+      platforms: [
+        { x: 0, y: 440, w: 220, h: 40 },
+        { x: 300, y: 400, w: 120, h: 16 },
+        { x: 500, y: 340, w: 120, h: 16 },
+        { x: 320, y: 250, w: 150, h: 16 },
+        { x: 560, y: 180, w: 130, h: 16 },
+        { x: 100, y: 200, w: 120, h: 16 },
+        { x: 700, y: 440, w: 100, h: 40 },
+      ],
+      coins: [ {x:340,y:360},{x:540,y:300},{x:380,y:210},{x:440,y:210},{x:600,y:140},{x:140,y:160},{x:25,y:400} ],
+      spikes: [ { x: 250, y: 420, w: 36, h: 20 }, { x: 450, y: 420, w: 36, h: 20 } ],
+      flag: { x: 740, y: 400 },
+    },
+    {
+      spawn: { x: 40, y: 180 },
+      platforms: [
+        { x: 0, y: 240, w: 150, h: 16 },
+        { x: 240, y: 200, w: 110, h: 16 },
+        { x: 430, y: 250, w: 100, h: 16 },
+        { x: 600, y: 200, w: 110, h: 16 },
+        { x: 350, y: 380, w: 400, h: 16 },
+        { x: 0, y: 440, w: 800, h: 40 },
+      ],
+      coins: [ {x:60,y:200},{x:280,y:160},{x:470,y:210},{x:640,y:160},{x:25,y:400},{x:60,y:400},{x:95,y:400} ],
+      spikes: [ { x: 180, y: 420, w: 36, h: 20 }, { x: 240, y: 420, w: 36, h: 20 } ],
+      flag: { x: 740, y: 340 },
+    },
+  ];
+
+  const GRAV = 0.55, MOVE = 0.7, MAX_VX = 5.2, JUMP = 12.5, FRICTION = 0.84;
+  const PLAYER_W = 30, PLAYER_H = 38;
+
+  let state = 'menu';
+  let levelIdx = 0;
+  let score = 0;
+  let best = 0;
+  const keys = { left: false, right: false, jump: false };
+
+  let player, platforms, coins, spikes, flag, collected, time = 0, jumps = 0;
+
+  function loadLevel(i) {
+    const L = LEVELS[i];
+    player = { x: L.spawn.x, y: L.spawn.y, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
+    platforms = L.platforms;
+    collected = L.coins.map(() => false);
+    coins = L.coins;
+    spikes = L.spikes || [];
+    flag = L.flag;
+    jumps = 0;
+  }
+
+  function rectsHit(a, b, pad = 0) {
+    return a.x + pad < b.x + b.w && a.x + a.w - pad > b.x &&
+           a.y + pad < b.y + b.h && a.y + a.h - pad > b.y;
+  }
+
+  function update() {
+    time += 1/60;
+
+    player.vy += GRAV;
+    if (keys.left) { player.vx -= MOVE; player.face = -1; }
+    if (keys.right) { player.vx += MOVE; player.face = 1; }
+    if (!keys.left && !keys.right) player.vx *= FRICTION;
+    player.vx = Math.max(-MAX_VX, Math.min(MAX_VX, player.vx));
+
+    if (keys.jump && player.onGround) {
+      player.vy = -JUMP;
+      player.onGround = false;
+      jumps++;
+    }
+    keys.jump = false;
+
+    player.x += player.vx;
+    player.y += player.vy;
+    player.x = Math.max(0, Math.min(W - player.w, player.x));
+
+    const body = { x: player.x, y: player.y, w: player.w, h: player.h };
+    player.onGround = false;
+    for (const p of platforms) {
+      if (rectsHit(body, p, 6)) {
+        const prevBottom = player.y - player.vy + player.h;
+        if (player.vy >= 0 && prevBottom <= p.y + 4) {
+          player.y = p.y - player.h;
+          player.vy = 0;
+          player.onGround = true;
+        } else if (player.vy < 0 && player.y - player.vy >= p.y + p.h - 4) {
+          player.y = p.y + p.h;
+          player.vy = 0;
+        } else {
+          player.x = player.x < p.x + p.w / 2 ? p.x - player.w : p.x + p.w;
+        }
+        body.x = player.x; body.y = player.y;
+      }
+    }
+
+    if (player.y > H + 60) { die(); return; }
+
+    for (const s of spikes) if (rectsHit(body, s, 6)) { die(); return; }
+
+    coins.forEach((c, i) => {
+      if (collected[i]) return;
+      const cr = { x: c.x - 12, y: c.y - 12, w: 24, h: 24 };
+      if (rectsHit(body, cr)) { collected[i] = true; score++; updateHud(); }
+    });
+
+    if (score > best) best = score;
+
+    const fx = { x: flag.x, y: flag.y, w: 40, h: 60 };
+    if (rectsHit(body, fx, 4)) {
+      if (levelIdx + 1 < LEVELS.length) {
+        levelIdx++;
+        loadLevel(levelIdx);
+        updateHud();
+        flash('Уровень ' + (levelIdx + 1) + '!');
+      } else {
+        state = 'win';
+        showOverlay('Победа!', 'Все уровни пройдены 🎉<br>Монет собрано: ' + score,
+          'Играть снова', () => { score = 0; levelIdx = 0; loadLevel(0); updateHud(); state = 'play'; hideOverlay(); });
+      }
+    }
+  }
+
+  function die() {
+    state = 'dead';
+    score -= collectedCountOnLevel();
+    if (score < 0) score = 0;
+    updateHud();
+    flash('Ой!');
+    setTimeout(() => {
+      loadLevel(levelIdx);
+      state = 'play';
+    }, 600);
+  }
+
+  let flashText = null;
+  function flash(t) { flashText = { text: t, life: 70 }; }
+
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    for (const c of coins) {
+      ctx.fillStyle = COLORS.coin;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = COLORS.bg;
+      ctx.beginPath();
+      ctx.arc(c.x, c.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    for (const p of platforms) {
+      ctx.fillStyle = COLORS.platform;
+      roundRect(p.x, p.y, p.w, p.h, p.h > 30 ? 10 : 8);
+      ctx.fill();
+    }
+
+    for (const s of spikes) {
+      ctx.fillStyle = COLORS.spike;
+      const n = Math.floor(s.w / 12);
+      for (let i = 0; i < n; i++) {
+        const x0 = s.x + i * 12;
+        ctx.beginPath();
+        ctx.moveTo(x0, s.y + s.h);
+        ctx.lineTo(x0 + 6, s.y);
+        ctx.lineTo(x0 + 12, s.y + s.h);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    const f = flag;
+    ctx.fillStyle = COLORS.flag;
+    ctx.fillRect(f.x + 2, f.y, 6, 60);
+    ctx.beginPath();
+    ctx.moveTo(f.x + 8, f.y + 4);
+    ctx.lineTo(f.x + 40, f.y + 15);
+    ctx.lineTo(f.x + 8, f.y + 28);
+    ctx.closePath();
+    ctx.fill();
+
+    const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
+    ctx.fillStyle = COLORS.player;
+    roundRect(player.x, player.y + (state === 'menu' ? bob : 0), player.w, player.h, 8);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    const ex = player.x + (player.face === 1 ? player.w - 16 : 6);
+    ctx.beginPath();
+    ctx.arc(ex + 5, player.y + 12 + (state === 'menu' ? bob : 0), 3.4, 0, Math.PI * 2);
+    ctx.arc(ex - 1, player.y + 12 + (state === 'menu' ? bob : 0), 3.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2b3a55';
+    ctx.beginPath();
+    ctx.arc(ex + 5 + player.face, player.y + 12 + (state === 'menu' ? bob : 0), 1.5, 0, Math.PI * 2);
+    ctx.arc(ex - 1 + player.face, player.y + 12 + (state === 'menu' ? bob : 0), 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (flashText) {
+      ctx.fillStyle = 'rgba(43,58,85,' + Math.min(1, flashText.life / 30) + ')';
+      ctx.font = 'bold 44px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(flashText.text, W / 2, H / 2);
+      ctx.textAlign = 'left';
+      flashText.life--;
+      if (flashText.life <= 0) flashText = null;
+    }
+  }
+
+  const overlay = document.getElementById('overlay');
+  const scoreEl = document.getElementById('score');
+  const levelEl = document.getElementById('level');
+
+  function updateHud() {
+    scoreEl.textContent = 'Монеты: ' + score;
+    levelEl.textContent = 'Уровень ' + (levelIdx + 1);
+  }
+
+  function showOverlay(title, text, btn, action) {
+    overlay.querySelector('h1').innerHTML = title;
+    overlay.querySelector('p').innerHTML = text;
+    overlay.querySelector('.btn').textContent = btn;
+    overlay.classList.remove('hidden');
+    overlay.querySelector('.btn').onclick = action;
+  }
+  function hideOverlay() { overlay.classList.add('hidden'); }
+
+  function start() {
+    score = 0; levelIdx = 0; loadLevel(0); updateHud();
+    state = 'play'; hideOverlay();
+  }
+  document.getElementById('startBtn').onclick = start;
+
+  document.addEventListener('keydown', e => {
+    if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = true;
+    if (['ArrowRight','KeyD'].includes(e.code)) keys.right = true;
+    if (['ArrowUp','KeyW','Space'].includes(e.code)) {
+      keys.jump = true;
+      e.preventDefault();
+      if (state === 'menu' || state === 'win') start();
+    }
+    if (e.code === 'KeyR' && state !== 'menu') {
+      score -= collectedCountOnLevel();
+      if (score < 0) score = 0;
+      loadLevel(levelIdx);
+      updateHud();
+    }
+  });
+  document.addEventListener('keyup', e => {
+    if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = false;
+    if (['ArrowRight','KeyD'].includes(e.code)) keys.right = false;
+  });
+
+  function collectedCountOnLevel() {
+    return collected ? collected.filter(Boolean).length : 0;
+  }
+
+  const isTouch = 'ontouchstart' in window;
+  if (isTouch) document.body.classList.add('touch');
+  document.querySelectorAll('#touch div').forEach(el => {
+    const k = el.dataset.k;
+    const on = e => { e.preventDefault(); if (k === 'jump') { if (state !== 'play') start(); keys.jump = true; } else keys[k] = true; };
+    const off = e => { e.preventDefault(); if (k !== 'jump') keys[k] = false; };
+    el.addEventListener('touchstart', on, { passive: false });
+    el.addEventListener('touchend', off, { passive: false });
+    el.addEventListener('touchcancel', off, { passive: false });
+  });
+
+  function resize() {
+    const scale = Math.min(window.innerWidth / (W + 40), window.innerHeight / (H + 40), 1);
+    cv.style.width = W * scale + 'px';
+    cv.style.height = H * scale + 'px';
+    const wrap = document.getElementById('wrap');
+    wrap.style.width = W * scale + 'px';
+    wrap.style.height = H * scale + 'px';
+    const hud = document.getElementById('hud');
+    hud.style.fontSize = 18 * scale + 'px';
+    overlay.style.fontSize = '';
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  loadLevel(0);
+  updateHud();
+
+  (function loop() {
+    if (state === 'play') update();
+    draw();
+    requestAnimationFrame(loop);
+  })();
+})();
+</script>
+</body>
+</html>
