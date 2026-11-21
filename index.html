@@ -316,6 +316,7 @@
   let levelIdx = 0;
   let score = 0;
   let camX = 0, time = 0, flashText = null, shake = 0, muzzleT = 0;
+  let deathT = 0, appearT = 0, saveT = 0, lastSafe = null;
   let particles = [];
   let splats = [];
 
@@ -342,6 +343,9 @@
     camX = 0;
     particles = [];
     splats = [];
+    appearT = 24;
+    saveT = 0;
+    lastSafe = { x: lvl.spawn.x, y: lvl.spawn.y };
     updateHud();
   }
 
@@ -356,19 +360,35 @@
     player.vx = 0;
     player.vy = 0;
     keys.jump = false;
+    appearT = 24;
+    deathT = 0;
   }
 
-  function saveDeath() {
+  function saveDeath(cause) {
     totem = false;
     updateHud();
-    respawnAtCp();
+    let spot = lastSafe || curCp;
+    const pr = { x: spot.x, y: spot.y, w: PLAYER_W, h: PLAYER_H };
+    for (const e of enemies) {
+      if (!e.dead && rectsHit(pr, e, -6)) { spot = { x: curCp.x, y: curCp.y }; break; }
+    }
+    player.x = spot.x;
+    player.y = spot.y;
+    player.vx = 0;
+    player.vy = 0;
+    keys.jump = false;
+    deathT = 0;
+    appearT = 24;
+    saveT = 32;
     shake = 8;
+    spawnParticles(player.x + PLAYER_W / 2, player.y + 15, '#ffcf3f', 14, 5, 3);
     flash('Тотем спас тебя!', 110);
   }
 
   function onDeath(cause) {
-    if (totem) { saveDeath(); return; }
+    if (totem) { saveDeath(cause); return; }
     state = 'dead';
+    deathT = 0;
     collected = cpSnap.collected.slice();
     score = cpSnap.score;
     updateHud();
@@ -400,7 +420,7 @@
     updateHud();
     bullets.push({
       x: player.face === 1 ? player.x + player.w + 13 : player.x - 37,
-      y: player.y + 13, w: 12, h: 6, dir: player.face,
+      y: player.y + 12, w: 12, h: 6, dir: player.face,
     });
     spawnParticles(player.face === 1 ? player.x + player.w + 36 : player.x - 36, player.y + 15, '#ffc93c', 6, 4, 1);
   }
@@ -473,6 +493,8 @@
     time += 1 / 60;
     shake = Math.max(0, shake - 0.5);
     muzzleT = Math.max(0, muzzleT - 1);
+    appearT = Math.max(0, appearT - 1);
+    saveT = Math.max(0, saveT - 1);
     updateParticles();
 
     const prevOnGround = player.onGround;
@@ -517,6 +539,9 @@
     }
     if (!prevOnGround && player.onGround && fallSpeed > 5) {
       spawnParticles(player.x + player.w / 2, player.y + player.h, 'rgba(150,160,180,.9)', 7, 4, 1);
+    }
+    if (player.onGround) {
+      lastSafe = { x: player.x, y: player.y };
     }
 
     if (player.y > H + 60) { onDeath('Упал в пропасть!'); return; }
@@ -682,13 +707,15 @@
     const p = player;
     const f = p.face;
     const bob = state === 'menu' ? Math.sin(Date.now() / 300) * 4 : 0;
-    const x = p.x, y = p.y + bob, w = p.w, h = p.h;
+    const x = p.x;
+    let y = p.y + bob;
+    const w = p.w, h = p.h;
     const dark = totem ? '#d8a017' : '#d92b22';
     const outline = '#1a1a1a';
     const moving = p.onGround && Math.abs(p.vx) > 0.3;
     const phase = time * 13;
     const swing = moving ? Math.sin(phase) * (Math.abs(p.vx) / MAX_VX) * 5 : 0;
-    const gy = y + 13;
+    const gy = y + 17;
     const cx = x + w / 2;
     const leg = (lx, ly) => {
       ctx.fillStyle = dark;
@@ -702,6 +729,23 @@
     ctx.lineCap = 'round';
     ctx.strokeStyle = outline;
     ctx.lineWidth = 2.5;
+
+    if (appearT > 0 && state === 'play') {
+      const s = 0.15 + 0.85 * (1 - appearT / 24);
+      ctx.globalAlpha = Math.min(1, 0.3 + s);
+      ctx.translate(cx, y + h);
+      ctx.scale(s, s);
+      ctx.translate(-cx, -(y + h));
+    }
+    if (state === 'dead') {
+      const n = Math.min(deathT * 60, 36);
+      const dy = -5 * n + 0.125 * n * n;
+      y += dy;
+      ctx.globalAlpha = Math.max(0, 1 - deathT / 0.6);
+      ctx.translate(cx, y + 15);
+      ctx.rotate(n * 0.25 * f);
+      ctx.translate(-cx, -(y + 15));
+    }
 
     if (p.onGround) {
       leg(x + 6 + swing, y + 26);
@@ -724,6 +768,31 @@
     ctx.beginPath();
     ctx.ellipse(cx - 7, y + 8, 6, 3.5, -0.4, 0, Math.PI * 2);
     ctx.fill();
+
+    const ex = cx + f * 3;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(ex - 5.5, y + 10, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ex + 5.5, y + 10, 5.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = outline;
+    ctx.beginPath();
+    ctx.arc(ex - 5.5 + f * 1.5, y + 10.5, 2.2, 0, Math.PI * 2);
+    ctx.arc(ex + 5.5 + f * 1.5, y + 10.5, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(ex - 9.5, y + 2.5);
+    ctx.lineTo(ex - 2, y + 1.5);
+    ctx.moveTo(ex + 2, y + 1.5);
+    ctx.lineTo(ex + 9.5, y + 2.5);
+    ctx.stroke();
 
     ctx.save();
     ctx.translate(cx + f * 6, gy);
@@ -843,30 +912,26 @@
       ctx.moveTo(tx + 6, ty - 4); ctx.lineTo(tx + 9, ty - 1);
       ctx.stroke();
     }
-    const ex = cx + f * 3;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = outline;
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.arc(ex - 5.5, y + 11, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(ex + 5.5, y + 11, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = outline;
-    ctx.beginPath();
-    ctx.arc(ex - 5.5 + f * 1.5, y + 11.5, 2.2, 0, Math.PI * 2);
-    ctx.arc(ex + 5.5 + f * 1.5, y + 11.5, 2.2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(ex - 9.5, y + 3.5);
-    ctx.lineTo(ex - 2, y + 2.5);
-    ctx.moveTo(ex + 2, y + 2.5);
-    ctx.lineTo(ex + 9.5, y + 3.5);
-    ctx.stroke();
+    if (appearT > 0) {
+      const rr = (1 - appearT / 24) * 40 + 8;
+      ctx.globalAlpha = (appearT / 24) * 0.8;
+      ctx.strokeStyle = COLORS.flag;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(cx, y + h, rr, rr * 0.35, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (saveT > 0) {
+      const rr = (1 - saveT / 32) * 55 + 10;
+      ctx.globalAlpha = saveT / 32;
+      ctx.strokeStyle = '#ffcf3f';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(cx, y + 15, rr, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
     ctx.restore();
   }
 
@@ -1135,7 +1200,10 @@
 
   (function loop() {
     if (state === 'play') update();
-    else time += 1 / 60;
+    else {
+      time += 1 / 60;
+      if (state === 'dead') deathT += 1 / 60;
+    }
     draw();
     requestAnimationFrame(loop);
   })();
