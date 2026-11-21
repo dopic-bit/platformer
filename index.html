@@ -132,7 +132,7 @@
     player: '#ff6b6b',
     coin: '#ffc93c',
     flag: '#4ecdc4',
-    spike: '#5b6b87',
+    spike: '#ff5b5b',
     text: '#2b3a55',
   };
 
@@ -249,9 +249,9 @@
       }
     }
 
-    if (player.y > H + 60) { die(); return; }
+    if (player.y > H + 60) { die('Упал в пропасть!'); return; }
 
-    for (const s of spikes) if (rectsHit(body, s, 6)) { die(); return; }
+    for (const s of spikes) if (rectsHit(body, s, 8)) { die('Напоролся на шипы!'); return; }
 
     coins.forEach((c, i) => {
       if (collected[i]) return;
@@ -276,12 +276,12 @@
     }
   }
 
-  function die() {
+  function die(cause = 'Ой!') {
     state = 'dead';
     score -= collectedCountOnLevel();
     if (score < 0) score = 0;
     updateHud();
-    flash('Ой!');
+    flash(cause, 130);
     setTimeout(() => {
       loadLevel(levelIdx);
       state = 'play';
@@ -289,7 +289,7 @@
   }
 
   let flashText = null;
-  function flash(t) { flashText = { text: t, life: 70 }; }
+  function flash(t, life = 70) { flashText = { text: t, life }; }
 
   function roundRect(x, y, w, h, r) {
     ctx.beginPath();
@@ -362,8 +362,8 @@
     ctx.fill();
 
     if (flashText) {
+      ctx.font = flashText.text.length > 4 ? 'bold 30px Segoe UI, system-ui, sans-serif' : 'bold 44px Segoe UI, system-ui, sans-serif';
       ctx.fillStyle = 'rgba(43,58,85,' + Math.min(1, flashText.life / 30) + ')';
-      ctx.font = 'bold 44px Segoe UI, system-ui, sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(flashText.text, W / 2, H / 2);
       ctx.textAlign = 'left';
