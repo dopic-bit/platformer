@@ -248,7 +248,8 @@
       <h3>🎮 УПРАВЛЕНИЕ</h3>
       <div class="crow"><span>Движение</span><b>← → или A / D</b></div>
       <div class="crow"><span>Прыжок</span><b>↑ / W / Пробел</b></div>
-      <div class="crow"><span>Дробовик</span><b>X / F / клик мыши</b></div>
+      <div class="crow"><span>Стрелять</span><b>X / F / клик мыши</b></div>
+      <div class="crow"><span>Сменить оружие</span><b>1 дробовик · 2 узи · 3 граната · 4 катана</b></div>
       <div class="crow"><span>Прицел</span><b>мышь</b></div>
       <div class="crow"><span>Погладить кошку</span><b>E</b></div>
       <div class="crow"><span>Звук</span><b>M</b></div>
@@ -346,6 +347,9 @@
     jump() { tone(320, 0.14, 'square', 0.1, 620); },
     coin() { tone(880, 0.07, 'square', 0.1); setTimeout(() => tone(1320, 0.11, 'square', 0.1), 55); },
     shoot() { boom(0.22, 0.35); tone(140, 0.16, 'sawtooth', 0.22, 60); },
+    uzi() { tone(240, 0.06, 'square', 0.13, 110); boom(0.05, 0.1); },
+    thump() { tone(95, 0.2, 'sine', 0.18, 40); },
+    slash() { tone(720, 0.09, 'triangle', 0.12, 240); boom(0.05, 0.08); },
     wall() { boom(0.06, 0.12); },
     die() { tone(390, 0.5, 'sawtooth', 0.18, 70); },
     squish() { tone(220, 0.18, 'sawtooth', 0.18, 70); boom(0.1, 0.2); },
@@ -975,6 +979,24 @@
 
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
+  let curW = 'shotgun', fireCd = 0, slashFx = null;
+  let wowned = {}, wauzi = 0, walaun = 0;
+  try { wowned = JSON.parse(localStorage.getItem('pf_wowned') || '{}') || {}; } catch (e) { wowned = {}; }
+  try { wauzi = parseInt(localStorage.getItem('pf_wauzi') || '0', 10) || 0; } catch (e) { wauzi = 0; }
+  try { walaun = parseInt(localStorage.getItem('pf_walaun') || '0', 10) || 0; } catch (e) { walaun = 0; }
+  const WEAPONS = [
+    { id: 'shotgun', emoji: '🔫', name: 'Дробовик' },
+    { id: 'uzi', emoji: '🔥', name: 'Узи' },
+    { id: 'launcher', emoji: '💣', name: 'Гранатомёт' },
+    { id: 'katana', emoji: '⚔️', name: 'Катана' },
+  ];
+  function selectWeapon(w) {
+    if (w !== 'shotgun' && !wowned[w]) { flash('Это оружие ещё не куплено — загляни в магазин!', 70); return; }
+    curW = w;
+    const wp = WEAPONS.find(w2 => w2.id === w);
+    flash(wp.emoji + ' ' + wp.name, 50);
+    updateHud();
+  }
   let boss = null, fireballs = [], bossHazes = [], coyote = 0, playT = 0, lastSec = -1, mega = null;
   let aim = { mx: null, my: null };
   let god = false, infAmmo = false;
@@ -993,6 +1015,9 @@
       localStorage.setItem('pf_unlocked', unlocked);
       localStorage.setItem('pf_owned', JSON.stringify(owned));
       localStorage.setItem('pf_equipped', JSON.stringify(equipped));
+      localStorage.setItem('pf_wowned', JSON.stringify(wowned));
+      localStorage.setItem('pf_wauzi', wauzi);
+      localStorage.setItem('pf_walaun', walaun);
     } catch (e) {}
   }
 
@@ -1114,10 +1139,22 @@
   }
 
   function fire() {
-    if (state !== 'play' || (ammo <= 0 && !infAmmo)) return;
-    if (!infAmmo) ammo--;
+    if (state !== 'play') return;
+    if (curW === 'katana') { if (fireCd <= 0) { katanaSlash(); fireCd = 24; } return; }
+    if (curW !== 'shotgun' && fireCd > 0) return;
+    const isUzi = curW === 'uzi', isLaun = curW === 'launcher';
+    const pool = isUzi ? wauzi : (isLaun ? walaun : ammo);
+    if (pool <= 0 && !infAmmo) { flash('Нет патронов! Купи в магазине 🛒', 70); SFX.wall(); fireCd = 30; return; }
+    if (!infAmmo) {
+      if (isUzi) { wauzi--; if (wauzi % 5 === 0) saveProg(); }
+      else if (isLaun) { walaun--; saveProg(); }
+      else ammo--;
+      fireCd = isUzi ? 6 : (isLaun ? 32 : 0);
+    }
     muzzleT = 6;
-    SFX.shoot();
+    if (isUzi) SFX.uzi();
+    else if (isLaun) SFX.thump();
+    else SFX.shoot();
     updateHud();
     const f = player.face;
     const anchor = { x: player.x + player.w / 2 + f * 6, y: player.y + 17 };
@@ -1127,13 +1164,19 @@
       pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(mdy, mdx)));
     }
     const pvx = Math.cos(pitch) * f, pvy = Math.sin(pitch);
+    const spd = isUzi ? 13 : (isLaun ? 6.5 : BULLET_SPEED);
     const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35;
     bullets.push({
-      x: mx2 - 6, y: my2 - 3, w: 12, h: 6, dead: false,
-      vx: pvx * BULLET_SPEED, vy: pvy * BULLET_SPEED,
+      x: mx2 - (isLaun ? 9 : 6), y: my2 - (isLaun ? 6 : 3),
+      w: isLaun ? 18 : (isUzi ? 8 : 12), h: isLaun ? 12 : (isUzi ? 4 : 6),
+      dead: false,
+      vx: pvx * spd, vy: pvy * spd,
       ang: Math.atan2(pvy, pvx),
+      wkind: isLaun ? 'launcher' : null,
+      bcol: isLaun ? '#4a5a2f' : (isUzi ? '#ffd76e' : null),
     });
-    spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, '#ffc93c', 6, 4, 1);
+    spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, isLaun ? '#ff8c3d' : '#ffc93c', isLaun ? 10 : 6, 4, 1);
+    if (isLaun) { player.vx -= pvx * 2.4; }
   }
 
   function updateBullets() {
@@ -1152,28 +1195,13 @@
           break;
         }
       }
+      if (b.dead && b.wkind === 'launcher') { b.wkind = null; explodeAt(b.x + b.w / 2, b.y + b.h / 2); continue; }
       if (b.dead) continue;
       if (boss && !boss.dead && rectsHit(b, boss)) {
         b.dead = true;
-        if (boss.iframes <= 0) {
-          boss.hp--;
-          boss.iframes = 12;
-          SFX.bossHit();
-          shake = Math.max(shake, 5);
-          spawnParticles(b.x, b.y, '#ff5b5b', 10, 5, 3);
-          if (boss.hp <= 0) {
-            boss.dead = true;
-            shake = 14;
-            SFX.bossDie();
-            bank += 250; saveProg(); updateHud();
-            spawnParticles(boss.x + 32, boss.y + 28, '#ff5b5b', 40, 10, 5);
-            spawnParticles(boss.x + 32, boss.y + 28, '#ffc93c', 20, 8, 4);
-            flash('БОСС ПОВЕРЖЕН!', 100);
-          } else {
-            flash('Босс: ' + boss.hp + ' hp', 40);
-          }
-        }
+        bossDamage(1, b.x + b.w / 2, b.y + b.h / 2);
       }
+      if (b.dead && b.wkind === 'launcher') { b.wkind = null; explodeAt(b.x + b.w / 2, b.y + b.h / 2); continue; }
       if (b.dead) continue;
       if (mega && !mega.dead && !mega.dying && mega.phase === 'fight') {
         if (mega.block > 0 && rectsHit(b, { x: mega.x - 150, y: 180, w: 312, h: 262 })) {
@@ -1181,32 +1209,103 @@
         }
         for (const pt of mega.parts) {
           if (pt.dead) continue;
-          const pr = { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 };
-          if (rectsHit(b, pr)) {
+          if (rectsHit(b, { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 })) {
             b.dead = true;
-            pt.hp--;
-            pt.flash = 12;
-            SFX.bossHit();
-            shake = Math.max(shake, 5);
-            spawnParticles(b.x, b.y, BOSS_SKINS[pt.theme].body, 10, 5, 3);
-            if (pt.hp <= 0) {
-              pt.dead = true;
-              bank += 40; saveProg(); updateHud();
-              SFX.bossDie();
-              shake = 12;
-              flash(BOSS_SKINS[pt.theme].name + ': ЧАСТЬ СНЯТА!', 110);
-              spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 26, 8, 4);
-            }
+            megaDamage(pt, 1, b.x + b.w / 2, b.y + b.h / 2);
             break;
           }
         }
       }
+      if (b.dead && b.wkind === 'launcher') { b.wkind = null; explodeAt(b.x + b.w / 2, b.y + b.h / 2); continue; }
       if (b.dead) continue;
       for (const p of platforms) {
         if (rectsHit(b, p)) { b.dead = true; SFX.wall(); spawnParticles(b.x, b.y, '#9aa8bf', 5, 3, 2); break; }
       }
+      if (b.dead && b.wkind === 'launcher') { b.wkind = null; explodeAt(b.x + b.w / 2, b.y + b.h / 2); }
     }
     bullets = bullets.filter(b => !b.dead);
+
+    function bossDamage(n, hx, hy) {
+      if (!boss || boss.dead || boss.iframes > 0) return;
+      boss.hp -= n;
+      boss.iframes = 12;
+      SFX.bossHit();
+      shake = Math.max(shake, 5);
+      spawnParticles(hx, hy, '#ff5b5b', 10, 5, 3);
+      if (boss.hp <= 0) {
+        boss.dead = true;
+        shake = 14;
+        SFX.bossDie();
+        bank += 250; saveProg(); updateHud();
+        spawnParticles(boss.x + 32, boss.y + 28, '#ff5b5b', 40, 10, 5);
+        spawnParticles(boss.x + 32, boss.y + 28, '#ffc93c', 20, 8, 4);
+        flash('БОСС ПОВЕРЖЕН!', 100);
+      } else {
+        flash('Босс: ' + boss.hp + ' hp', 40);
+      }
+    }
+    function megaDamage(pt, n, hx, hy) {
+      pt.hp -= n;
+      pt.flash = 12;
+      SFX.bossHit();
+      shake = Math.max(shake, 5);
+      spawnParticles(hx, hy, BOSS_SKINS[pt.theme].body, 10, 5, 3);
+      if (pt.hp <= 0) {
+        pt.dead = true;
+        bank += 40; saveProg(); updateHud();
+        SFX.bossDie();
+        shake = 12;
+        flash(BOSS_SKINS[pt.theme].name + ': ЧАСТЬ СНЯТА!', 110);
+        spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 26, 8, 4);
+      }
+    }
+    function explodeAt(ex, ey) {
+      spawnParticles(ex, ey, '#ff8c3d', 28, 8, 5);
+      spawnParticles(ex, ey, '#ffe08a', 16, 7, 4);
+      spawnParticles(ex, ey, '#8a8f99', 12, 5, 3);
+      shake = Math.max(shake, 9);
+      boom(0.3, 0.4);
+      const er = { x: ex - 46, y: ey - 40, w: 92, h: 84 };
+      for (const e of enemies) {
+        if (!e.dead && rectsHit(er, e)) {
+          e.dead = true;
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
+        }
+      }
+      if (boss && !boss.dead && rectsHit(er, boss)) bossDamage(2, ex, ey);
+      if (mega && !mega.dead && !mega.dying && mega.phase === 'fight' && mega.block === 0) {
+        for (const pt of mega.parts) {
+          if (pt.dead) continue;
+          if (rectsHit(er, { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 })) { megaDamage(pt, 2, ex, ey); break; }
+        }
+      }
+    }
+    function katanaSlash() {
+      const kcx = player.x + player.w / 2, kcy = player.y + 19;
+      let kang = player.face > 0 ? 0 : Math.PI;
+      if (aim.mx !== null) kang = Math.atan2(aim.my - kcy, aim.mx + camX - kcx);
+      player.face = Math.cos(kang) >= 0 ? 1 : -1;
+      slashFx = { t: 13, ang: kang };
+      SFX.slash();
+      const kr = { x: kcx + Math.cos(kang) * 30 - 44, y: kcy + Math.sin(kang) * 30 - 38, w: 88, h: 80 };
+      for (const e of enemies) {
+        if (!e.dead && rectsHit(kr, e)) {
+          e.dead = true;
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
+          spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
+          shake = Math.max(shake, 3);
+          SFX.squish();
+        }
+      }
+      if (boss && !boss.dead && rectsHit(kr, boss)) bossDamage(1, kcx, kcy);
+      if (mega && !mega.dead && !mega.dying && mega.phase === 'fight' && mega.block === 0) {
+        for (const pt of mega.parts) {
+          if (pt.dead) continue;
+          if (rectsHit(kr, { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 })) { megaDamage(pt, 1, kcx, kcy); break; }
+        }
+      }
+    }
   }
 
   function updateParticles() {
@@ -1258,6 +1357,8 @@
     if (sec !== lastSec && timerEl) { lastSec = sec; timerEl.textContent = '⏱ ' + fmtTime(playT); }
     shake = Math.max(0, shake - 0.5);
     muzzleT = Math.max(0, muzzleT - 1);
+    if (fireCd > 0) fireCd--;
+    if (slashFx) { slashFx.t--; if (slashFx.t <= 0) slashFx = null; }
     appearT = Math.max(0, appearT - 1);
     saveT = Math.max(0, saveT - 1);
     safeT = Math.max(0, safeT - 1);
@@ -2808,12 +2909,32 @@
     }
     ctx.globalAlpha = 1;
 
+    if (slashFx) {
+      const scx = player.x + player.w / 2, scy = player.y + 19;
+      ctx.save();
+      ctx.translate(scx, scy);
+      ctx.rotate(slashFx.ang);
+      const sp = 1 - slashFx.t / 13;
+      ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 - sp * 0.6).toFixed(2) + ')';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 0, 52, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,220,120,.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(0, 0, 60, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
+      ctx.restore();
+    }
     ctx.fillStyle = '#2b3a55';
     for (const b of bullets) {
       ctx.save();
       ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
       ctx.rotate(b.ang || 0);
+      ctx.fillStyle = b.bcol || '#2b3a55';
       ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      if (b.wkind === 'launcher') {
+        ctx.fillStyle = '#ff8c3d';
+        ctx.fillRect(-b.w / 2, -b.h / 2 - 2, 4, b.h + 4);
+        ctx.fillRect(b.w / 2 - 5, -b.h / 2 - 2, 4, b.h + 4);
+      }
       ctx.restore();
     }
 
@@ -3790,7 +3911,10 @@
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
     levelEl.textContent = lvl && lvl.final ? '🔥 ФИНАЛ · МЕГА-ДРЫН' : 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1);
-    ammoEl.textContent = '🔫 ' + ammo;
+    if (curW === 'shotgun') ammoEl.textContent = '🔫 ' + (infAmmo ? '∞' : ammo);
+    else if (curW === 'uzi') ammoEl.textContent = '🔥 Uzi ' + (infAmmo ? '∞' : wauzi);
+    else if (curW === 'launcher') ammoEl.textContent = '💣 ' + (infAmmo ? '∞' : walaun);
+    else ammoEl.textContent = '⚔️ ∞';
     totemEl.style.display = totem ? 'inline-block' : 'none';
     totemEl.textContent = '🐾 Тотем' + (totemCharges > 1 ? ' ×' + totemCharges : '');
     if (bankEl) bankEl.textContent = '💰 ' + bank;
@@ -3894,6 +4018,10 @@
       if (state === 'play') toMenu();
     }
     if (['KeyX','KeyF'].includes(e.code)) fire();
+    if (e.code === 'Digit1') selectWeapon('shotgun');
+    if (e.code === 'Digit2') selectWeapon('uzi');
+    if (e.code === 'Digit3') selectWeapon('launcher');
+    if (e.code === 'Digit4') selectWeapon('katana');
     if (e.code === 'KeyH') document.getElementById('controlsWnd').classList.toggle('hidden');
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
@@ -3917,6 +4045,11 @@
     { id: 'ammo5', emoji: '🔫', name: '+5 патронов', desc: '+5 дроби на каждом уровне', price: 75 },
     { id: 'totem2', emoji: '🐾', name: 'Двойной тотем', desc: 'тотем спасает два раза', price: 150 },
     { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 150 },
+  ];
+  const WEAPON_SHOP = [
+    { kind: 'gun', wid: 'uzi', emoji: '🔥', name: 'Узи', desc: 'скорострельный · свои патроны', price: 1000 },
+    { kind: 'gun', wid: 'launcher', emoji: '💣', name: 'Гранатомёт', desc: 'взрыв по площади · свои патроны', price: 2000 },
+    { kind: 'gun', wid: 'katana', emoji: '⚔️', name: 'Катана', desc: 'ближний бой · патроны не нужны', price: 1500 },
   ];
   const COSMETICS = [
     { id: 'hat', cat: 'head', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
@@ -4009,7 +4142,7 @@
     document.getElementById('cosHead').classList.toggle('on', cosTab === 'head');
     document.getElementById('cosFace').classList.toggle('on', cosTab === 'face');
     document.getElementById('cosTrail').classList.toggle('on', cosTab === 'trail');
-    const items = shopTab === 'upg' ? SHOP : COSMETICS.filter(c => c.cat === cosTab);
+    const items = shopTab === 'upg' ? WEAPON_SHOP.concat(SHOP) : COSMETICS.filter(c => c.cat === cosTab);
     items.forEach(it => {
       const row = document.createElement('div');
       row.className = 'shopitem';
@@ -4017,6 +4150,40 @@
       info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">' + it.desc + '</span>';
       row.appendChild(info);
       const btn = document.createElement('button');
+      if (it.kind === 'gun') {
+        if (!wowned[it.wid]) {
+          btn.textContent = '💰 ' + it.price;
+          btn.disabled = bank < it.price;
+          btn.onclick = () => {
+            if (bank < it.price) return;
+            bank -= it.price;
+            wowned[it.wid] = true;
+            if (it.wid === 'uzi') wauzi += 30;
+            if (it.wid === 'launcher') walaun += 8;
+            saveProg(); updateHud(); renderShop();
+            flash(it.emoji + ' ' + it.name + ' куплен! Переключение: 1–4', 100);
+          };
+        } else if (it.wid === 'katana') {
+          row.classList.add('owned');
+          btn.textContent = '✓ Куплено (без патронов)';
+          btn.disabled = true;
+        } else {
+          info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">склад: ' + (it.wid === 'uzi' ? wauzi : walaun) + ' патронов · ' + it.desc + '</span>';
+          const pNum = it.wid === 'uzi' ? 30 : 8, pPrice = it.wid === 'uzi' ? 150 : 250;
+          btn.textContent = '📎 +' + pNum + ' (' + pPrice + ')';
+          btn.disabled = bank < pPrice;
+          btn.onclick = () => {
+            if (bank < pPrice) return;
+            bank -= pPrice;
+            if (it.wid === 'uzi') wauzi += pNum; else walaun += pNum;
+            saveProg(); updateHud(); renderShop();
+            flash('+' + pNum + ' патронов!', 60);
+          };
+        }
+        row.appendChild(btn);
+        list.appendChild(row);
+        return;
+      }
       if (owned[it.id]) {
         if (it.cat) {
           row.classList.toggle('worn', wearing(it.id));
@@ -4080,7 +4247,8 @@
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
     bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
-    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); } catch (e) {}
+    wowned = {}; wauzi = 0; walaun = 0; curW = 'shotgun';
+    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); localStorage.removeItem('pf_wowned'); localStorage.removeItem('pf_wauzi'); localStorage.removeItem('pf_walaun'); } catch (e) {}
     setMuted(false);
     setShowAim(true);
     updateHud();
@@ -4124,7 +4292,7 @@
   document.getElementById('admRetry').onclick = () => { if (state !== 'menu') { respawnAtCp(); state = 'play'; } };
   document.getElementById('admGod').onclick = e => { god = !god; e.target.classList.toggle('on', god); };
   document.getElementById('admAmmo').onclick = e => { infAmmo = !infAmmo; e.target.classList.toggle('on', infAmmo); };
-  document.getElementById('admPlus').onclick = () => { ammo += 10; updateHud(); flash('+10 патронов', 40); };
+  document.getElementById('admPlus').onclick = () => { ammo += 10; wauzi += 20; walaun += 6; saveProg(); updateHud(); flash('+патроны всем', 40); };
   document.getElementById('admTotem').onclick = () => { totem = !totem; updateHud(); flash(totem ? 'Тотем выдан' : 'Тотем снят', 40); };
   document.getElementById('admKillBoss').onclick = () => {
     if (mega && !mega.dead) {
