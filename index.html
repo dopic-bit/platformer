@@ -989,12 +989,12 @@
   const WEAPONS = [
     { id: 'shotgun', emoji: '🔫', name: 'Дробовик', ammoKey: null, cd: 0, spd: 10 },
     { id: 'pistol', emoji: '🎯', name: 'Пистолет', ammoKey: 'pistol', cd: 16, spd: 11 },
-    { id: 'kalash', emoji: '🧨', name: 'Калаш', ammoKey: 'kalash', cd: 9, spd: 12 },
-    { id: 'uzi', emoji: '🎇', name: 'Узи ×2', ammoKey: 'uzi', cd: 5, spd: 13 },
+    { id: 'kalash', emoji: '🧨', name: 'Калаш', ammoKey: 'kalash', cd: 14, spd: 12, burst: 3, bgap: 5 },
+    { id: 'uzi', emoji: '🎇', name: 'Узи ×2', ammoKey: 'uzi', cd: 14, spd: 13, burst: 5, bgap: 3 },
     { id: 'avik', emoji: '🔭', name: 'Авик', ammoKey: 'avik', cd: 7, spd: 15 },
     { id: 'launcher', emoji: '💣', name: 'Гранатомёт', ammoKey: 'launcher', cd: 32, spd: 6.5 },
     { id: 'katana', emoji: '⚔️', name: 'Катана', ammoKey: null, cd: 24, spd: 10 },
-    { id: 'minigun', emoji: '🔥', name: 'Миниган', ammoKey: 'minigun', cd: 2, spd: 14 },
+    { id: 'minigun', emoji: '🔥', name: 'Миниган', ammoKey: 'minigun', cd: 5, spd: 14, burst: 10, bgap: 2 },
   ];
   function wpool(id) {
     if (id === 'shotgun') return ammo;
@@ -1157,13 +1157,17 @@
     const isUzi = curW === 'uzi', isLaun = curW === 'launcher', isMini = curW === 'minigun', isKal = curW === 'kalash', isAvik = curW === 'avik', isPist = curW === 'pistol';
     const pool = wpool(curW);
     if (pool <= 0 && !infAmmo) { flash('Нет патронов! Купи в магазине 🛒', 70); SFX.wall(); fireCd = 30; return; }
+    const isBurst = !!(isUzi || isKal || isMini);
+    const burstN = isBurst ? (infAmmo ? W2.burst : Math.min(W2.burst, Math.max(0, Math.floor(pool)))) : 1;
     if (!infAmmo) {
       if (curW === 'shotgun') ammo--;
-      else { wammo[W2.ammoKey]--; if (wammo[W2.ammoKey] % 4 === 0) saveProg(); }
-      fireCd = curW === 'shotgun' ? 0 : (W2.cd || 6);
+      else { wammo[W2.ammoKey] -= burstN; if (wammo[W2.ammoKey] % 4 === 0) saveProg(); }
+      fireCd = curW === 'shotgun' ? 0 : (W2.cd || 6) + (isBurst ? W2.burst * W2.bgap : 0);
+    } else if (isBurst) {
+      fireCd = (W2.cd || 6) + W2.burst * W2.bgap;
     }
     if (isMini) {
-      mgHeat = Math.min(100, mgHeat + 1.67);
+      mgHeat = Math.min(100, mgHeat + 1.67 * burstN);
       if (mgHeat >= 100 && !mgHot) { mgHot = true; flash('Миниган раскалился! Жди ♨️', 60); }
     }
     muzzleT = 6;
@@ -1180,24 +1184,27 @@
     }
     const pvx = Math.cos(pitch) * f, pvy = Math.sin(pitch);
     const spd = W2.spd || BULLET_SPEED;
-    const spread = isMini ? (Math.random() - 0.5) * 0.07 : ((isKal || isAvik) ? (Math.random() - 0.5) * 0.03 : 0);
-    const pch2 = Math.max(-1.52, Math.min(1.52, pitch + spread));
-    const pvx2 = Math.cos(pch2) * f, pvy2 = Math.sin(pch2);
     const bw = isLaun ? 18 : (isAvik ? 16 : (isMini ? 7 : (isKal ? 11 : (isUzi ? 8 : (isPist ? 10 : 12)))));
     const bh = isLaun ? 12 : (isMini ? 3 : (isUzi || isPist || isKal || isAvik ? 4 : 6));
-    let hOff = 0;
-    if (isUzi) { mgHand = 1 - mgHand; hOff = mgHand ? 4 : -4; }
-    const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35 + hOff;
-    bullets.push({
-      x: mx2 - (isLaun ? 9 : 6), y: my2 - (isLaun ? 6 : bh / 2),
-      w: bw, h: bh,
-      dead: false,
-      vx: pvx2 * spd, vy: pvy2 * spd,
-      ang: Math.atan2(pvy2, pvx2),
-      wkind: isLaun ? 'launcher' : null,
-      bcol: isLaun ? '#4a5a2f' : (isUzi ? '#ffd76e' : (isKal ? '#ffb347' : (isAvik ? '#9be7ff' : (isMini ? '#ff7b4a' : (isPist ? '#e8e8e8' : null))))),
-      pierce: isAvik ? 2 : 0,
-    });
+    const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35;
+    for (let bi = 0; bi < burstN; bi++) {
+      const spread = isMini ? (Math.random() - 0.5) * 0.09 : (isUzi ? (Math.random() - 0.5) * 0.05 : ((isKal || isAvik) ? (Math.random() - 0.5) * 0.03 : 0));
+      const pch2 = Math.max(-1.52, Math.min(1.52, pitch + spread));
+      const pvx2 = Math.cos(pch2) * f, pvy2 = Math.sin(pch2);
+      const hOff = isUzi ? (bi % 2 === 0 ? -4 : 4) : 0;
+      bullets.push({
+        x: mx2 - (isLaun ? 9 : 6), y: my2 - (isLaun ? 6 : bh / 2) + hOff,
+        w: bw, h: bh,
+        dead: false,
+        delay: isBurst ? bi * W2.bgap : 0,
+        grav: isLaun ? 26 : 0,
+        vx: pvx2 * spd, vy: pvy2 * spd,
+        ang: Math.atan2(pvy2, pvx2),
+        wkind: isLaun ? 'launcher' : null,
+        bcol: isLaun ? '#4a5a2f' : (isUzi ? '#ffd76e' : (isKal ? '#ffb347' : (isAvik ? '#9be7ff' : (isMini ? '#ff7b4a' : (isPist ? '#e8e8e8' : null))))),
+        pierce: isAvik ? 2 : 0,
+      });
+    }
     spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, isLaun ? '#ff8c3d' : '#ffc93c', isMini ? 3 : (isLaun ? 10 : 6), 4, 1);
     if (isLaun) { player.vx -= pvx * 2.4; }
     if (isMini) { player.vx -= pvx * 0.5; }
@@ -1206,6 +1213,8 @@
   function updateBullets() {
     for (const b of bullets) {
       if (b.dead) continue;
+      if (b.delay > 0) { b.delay--; continue; }
+      if (b.grav !== undefined) { if (b.grav > 0) b.grav--; else { b.vy = Math.min(6.5, b.vy + 0.14); b.ang = Math.atan2(b.vy, b.vx); } }
       b.x += b.vx;
       b.y += b.vy;
       if (b.x < -20 || b.x > lvl.width + 20 || b.y < -40 || b.y > H + 60) { b.dead = true; continue; }
@@ -3171,6 +3180,7 @@
     }
     ctx.fillStyle = '#2b3a55';
     for (const b of bullets) {
+      if (b.delay > 0) continue;
       ctx.save();
       ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
       ctx.rotate(b.ang || 0);
