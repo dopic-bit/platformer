@@ -95,13 +95,89 @@
   #admin button:hover { background: #4c5b73; }
   #admin button.on { background: #2f9e5a; }
   #admin .lbl { opacity: .7; margin: 2px 0; }
+  #menu {
+    position: absolute; inset: 0; z-index: 30;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+    background: rgba(20,26,38,.9); color: #fff; cursor: default;
+    border-radius: 16px; text-align: center;
+  }
+  #menu.hidden { display: none; }
+  .mtitle { margin: 0; font-size: 42px; letter-spacing: 1px; color: #ffd76b; }
+  .msub { margin: -4px 0 10px; color: #aab6cb; font-size: 15px; }
+  .mbtn {
+    width: 240px; margin: 3px 0; padding: 12px 0;
+    background: #ff6b6b; color: #fff; border: none; border-radius: 999px;
+    font-size: 17px; font-weight: 700; cursor: pointer; transition: transform .12s;
+  }
+  .mbtn:hover { transform: scale(1.04); }
+  .mbtn.small { width: 240px; padding: 9px 0; font-size: 14.5px; background: #4c5b73; }
+  .mbank { color: #ffd76b; font-weight: 700; margin-bottom: 4px; font-size: 16px; }
+  .mfoot { margin-top: 10px; color: #7e8aa2; font-size: 12.5px; }
+  .mhead { font-size: 22px; font-weight: 700; color: #ffd76b; margin-bottom: 8px; }
+  .mscr { display: flex; flex-direction: column; align-items: center; gap: 8px; max-height: 100%; overflow: auto; padding: 10px; }
+  .mscr.hidden { display: none; }
+  .lvls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 420px; }
+  .lvls button {
+    width: 128px; padding: 10px 0; border: none; border-radius: 10px;
+    background: #35425a; color: #fff; font: 700 14px Segoe UI, system-ui, sans-serif; cursor: pointer;
+  }
+  .lvls button:hover { background: #43516d; }
+  .lvls button.locked { background: #232a38; color: #5d6a82; cursor: default; }
+  .mback {
+    margin-top: 6px; padding: 7px 22px; border: none; border-radius: 999px;
+    background: rgba(255,255,255,.12); color: #fff; font: 600 13.5px Segoe UI, system-ui, sans-serif; cursor: pointer;
+  }
+  .mback:hover { background: rgba(255,255,255,.22); }
+  .shopitem, .srow {
+    width: 340px; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    background: rgba(255,255,255,.08); border-radius: 10px; padding: 8px 12px; font-size: 13.5px; text-align: left;
+  }
+  .shopitem b { color: #ffd76b; }
+  .shopitem .desc { display: block; color: #aab6cb; font-size: 12px; margin-top: 2px; }
+  .shopitem button, .srow button {
+    padding: 6px 12px; border: none; border-radius: 999px;
+    background: #2f9e5a; color: #fff; font: 700 13px Segoe UI, system-ui, sans-serif; cursor: pointer; white-space: nowrap;
+  }
+  .shopitem button:disabled { background: #2c3547; color: #77839b; cursor: default; }
+  .shopitem.owned button { background: #2c3547; color: #7ee2a8; cursor: default; }
+  .srow button.off { background: #973a2e; }
 </style>
 </head>
 <body>
 <div id="wrap">
   <canvas id="game" width="800" height="480"></canvas>
-  <div id="hud"><span class="pill" id="score">Монеты: 0</span><span class="pill" id="timer">⏱ 0:00</span><span><span class="pill" id="ammo">🔫 3</span>&nbsp;<span class="pill" id="totem">🐾 Тотем</span></span><span id="level">Уровень 1</span></div>
-  <div id="overlay">
+  <div id="hud"><span class="pill" id="score">Монеты: 0</span><span class="pill" id="bank">💰 0</span><span class="pill" id="timer">⏱ 0:00</span><span><span class="pill" id="ammo">🔫 3</span>&nbsp;<span class="pill" id="totem">🐾 Тотем</span></span><span id="level">Уровень 1</span></div>
+  <div id="menu">
+    <h1 class="mtitle">🎮 ПЛАТФОРМЕР</h1>
+    <div class="msub">дробовик · кошка · босс · монеты</div>
+    <div id="menuRoot" class="mscr">
+      <div class="mbank">💰 В банке: <span id="bankVal">0</span></div>
+      <button class="mbtn" id="menuPlay">▶ Играть</button>
+      <button class="mbtn" id="menuShop">🛒 Магазин</button>
+      <button class="mbtn" id="menuSettings">⚙ Настройки</button>
+      <div class="mfoot">Пробел — быстрый старт · M — звук · ~ — админ-панель</div>
+    </div>
+    <div id="menuPlayScr" class="mscr hidden">
+      <div class="mhead">▶ ИГРАТЬ</div>
+      <div class="lvls" id="lvlGrid"></div>
+      <button class="mbtn small" id="btnFullRun">🏁 Полное прохождение</button>
+      <button class="mback" id="backFromPlay">← Назад</button>
+    </div>
+    <div id="menuShopScr" class="mscr hidden">
+      <div class="mhead">🛒 МАГАЗИН</div>
+      <div class="mbank">💰 В банке: <span id="bankVal2">0</span></div>
+      <div id="shopList" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <button class="mback" id="backFromShop">← Назад</button>
+    </div>
+    <div id="menuSetScr" class="mscr hidden">
+      <div class="mhead">⚙ НАСТРОЙКИ</div>
+      <div class="srow"><span>🔊 Звук (M)</span><button id="setSound">ВКЛ</button></div>
+      <div class="srow"><span>🎯 Перекрестие прицела</span><button id="setAim">ВКЛ</button></div>
+      <div class="srow"><span>🗑 Прогресс</span><button id="setReset" style="background:#c0392b">Сбросить всё</button></div>
+      <button class="mback" id="backFromSet">← Назад</button>
+    </div>
+  </div>
+  <div id="overlay" class="hidden">
     <h1>Мини-платформер</h1>
     <p>← → или A/D — движение &nbsp;·&nbsp; ↑ / W / Пробел — прыжок<br>
        X / F / клик — дробовик &nbsp;·&nbsp; мышь — прицел &nbsp;·&nbsp; E — погладить кошку (Тотем спасёт 1 раз)<br>
@@ -528,6 +604,7 @@
   const PLAYER_W = 30, PLAYER_H = 38;
   const ENEMY_SPEED = 1.2;
   const BULLET_SPEED = 10, START_AMMO = 10;
+  let maxVx = MAX_VX;
 
   let state = 'menu';
   let levelIdx = 0;
@@ -543,6 +620,20 @@
   let boss = null, fireballs = [], coyote = 0, playT = 0, lastSec = -1;
   let aim = { mx: null, my: null };
   let god = false, infAmmo = false;
+  let bank = +(localStorage.getItem('pf_bank') || 0) || 0;
+  let unlocked = +(localStorage.getItem('pf_unlocked') || 1) || 1;
+  let owned = {};
+  try { owned = JSON.parse(localStorage.getItem('pf_owned') || '{}') || {}; } catch (e) { owned = {}; }
+  let showAimDot = localStorage.getItem('pf_aim') !== '0';
+  let totemCharges = 0;
+  function hasIt(id) { return !!owned[id]; }
+  function saveProg() {
+    try {
+      localStorage.setItem('pf_bank', bank);
+      localStorage.setItem('pf_unlocked', unlocked);
+      localStorage.setItem('pf_owned', JSON.stringify(owned));
+    } catch (e) {}
+  }
 
   function loadLevel(i) {
     lvl = LEVELS[i];
@@ -562,6 +653,8 @@
     bullets = [];
     fireballs = [];
     boss = lvl.boss ? { x: lvl.boss.x, y: lvl.boss.y, w: 64, h: 56, dir: -1, hp: lvl.boss.hp, maxHp: lvl.boss.hp, dead: false, iframes: 0, wind: 0, atk: 90, x1: lvl.boss.x1, x2: lvl.boss.x2, aggro: false } : null;
+    maxVx = MAX_VX * (hasIt('boots') ? 1.1 : 1);
+    ammo += hasIt('ammo5') ? 5 : 0;
     catPickups = { ...lvl.cat, w: 44, h: 36, given: false };
     camX = 0;
     particles = [];
@@ -590,7 +683,8 @@
   }
 
   function saveDeath(cause) {
-    totem = false;
+    totemCharges--;
+    if (totemCharges <= 0) totem = false;
     updateHud();
     let spot = lastSafe || curCp;
     for (const s of spikes) {
@@ -642,6 +736,7 @@
     if (cat.given) { flash('Мур...', 40); return; }
     cat.given = true;
     totem = true;
+    totemCharges = hasIt('totem2') ? 2 : 1;
     angel = { t: 0, sparkled: false };
     SFX.angel();
     flash('Мур! Тотем бессмертия твой!', 140);
@@ -790,7 +885,7 @@
       player.face = aim.mx + camX > player.x + player.w / 2 ? 1 : -1;
     }
     if (!keys.left && !keys.right) player.vx *= FRICTION;
-    player.vx = Math.max(-MAX_VX, Math.min(MAX_VX, player.vx));
+    player.vx = Math.max(-maxVx, Math.min(maxVx, player.vx));
     if (keys.jump && (player.onGround || coyote > 0)) {
       player.vy = -JUMP;
       player.onGround = false;
@@ -930,6 +1025,8 @@
       const cr = { x: c.x - COIN_R, y: c.y - COIN_R, w: COIN_R * 2, h: COIN_R * 2 };
       if (rectsHit(body, cr)) {
         collected[i] = true; score++;
+        bank += hasIt('coin2') ? 2 : 1;
+        saveProg();
         SFX.coin();
         spawnParticles(c.x, c.y, COLORS.coin, 8, 3, 2.5);
         updateHud();
@@ -959,6 +1056,7 @@
     if (rectsHit(body, fbox, 4)) {
       if (levelIdx + 1 < LEVELS.length) {
         levelIdx++;
+        if (levelIdx + 1 > unlocked) { unlocked = levelIdx + 1; saveProg(); }
         loadLevel(levelIdx);
         flash('Уровень ' + (levelIdx + 1) + '!', 80);
       } else {
@@ -969,7 +1067,7 @@
         if (rec) { try { localStorage.setItem('pf_best', playT); } catch (e) {} }
         showOverlay('Победа!', 'Все уровни пройдены 🎉<br>Монет собрано: ' + score + ' · Время: ' + fmtTime(playT) +
           (rec ? '<br>🏆 Новый рекорд!' : '<br>Лучшее время: ' + fmtTime(prevBest)),
-          'Играть снова', () => { score = 0; levelIdx = 0; ammo = START_AMMO; playT = 0; lastSec = -1; loadLevel(0); state = 'play'; hideOverlay(); });
+          'В меню', () => toMenu());
       }
     }
   }
@@ -1086,7 +1184,7 @@
     const outline = '#1a1a1a';
     const moving = p.onGround && Math.abs(p.vx) > 0.3;
     const phase = time * 13;
-    const swing = moving ? Math.sin(phase) * (Math.abs(p.vx) / MAX_VX) * 5 : 0;
+    const swing = moving ? Math.sin(phase) * (Math.abs(p.vx) / maxVx) * 5 : 0;
     const gy = y + 17;
     const cx = x + w / 2;
     const leg = (lx, ly) => {
@@ -1677,7 +1775,7 @@
 
     ctx.restore();
 
-    if (state === 'play' && aim.mx !== null) {
+    if (state === 'play' && showAimDot && aim.mx !== null) {
       ctx.strokeStyle = 'rgba(30,40,60,0.85)';
       ctx.lineWidth = 1.6;
       ctx.beginPath();
@@ -1707,6 +1805,7 @@
   }
 
   const overlay = document.getElementById('overlay');
+  const bankEl = document.getElementById('bank');
   const scoreEl = document.getElementById('score');
   const levelEl = document.getElementById('level');
   const timerEl = document.getElementById('timer');
@@ -1718,6 +1817,8 @@
     levelEl.textContent = 'Уровень ' + (levelIdx + 1);
     ammoEl.textContent = '🔫 ' + ammo;
     totemEl.style.display = totem ? 'inline-block' : 'none';
+    totemEl.textContent = '🐾 Тотем' + (totemCharges > 1 ? ' ×' + totemCharges : '');
+    if (bankEl) bankEl.textContent = '💰 ' + bank;
   }
 
   function showOverlay(title, text, btn, action) {
@@ -1729,9 +1830,20 @@
   }
   function hideOverlay() { overlay.classList.add('hidden'); }
 
-  function start() {
-    score = 0; levelIdx = 0; ammo = START_AMMO; playT = 0; lastSec = -1; loadLevel(0);
-    state = 'play'; hideOverlay();
+  function start() { startLevel(0); }
+  function startLevel(i) {
+    score = 0; levelIdx = i; ammo = START_AMMO; playT = 0; lastSec = -1;
+    loadLevel(i);
+    state = 'play';
+    menuEl.classList.add('hidden');
+    hideOverlay();
+    updateHud();
+  }
+  function toMenu() {
+    state = 'menu';
+    overlay.classList.add('hidden');
+    menuEl.classList.remove('hidden');
+    showMenuScr('root');
   }
 
   function fmtTime(t) {
@@ -1743,14 +1855,15 @@
   const keys = { left: false, right: false, jump: false };
   document.addEventListener('keydown', e => {
     ac();
-    if (e.code === 'KeyM') { muted = !muted; flash(muted ? 'Звук ВЫКЛ' : 'Звук ВКЛ', 50); }
+    if (e.code === 'KeyM') setMuted(!muted);
     if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = true;
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = true;
     if (['ArrowUp','KeyW','Space'].includes(e.code)) {
       keys.jump = true;
       e.preventDefault();
-      if (state === 'menu') start();
+      if (state === 'menu') startLevel(0);
     }
+    if (e.code === 'Escape' && state === 'play') toMenu();
     if (['KeyX','KeyF'].includes(e.code)) fire();
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
@@ -1766,6 +1879,104 @@
     aim.mx = (e.clientX - r.left) / r.width * W;
     aim.my = (e.clientY - r.top) / r.height * H;
   });
+
+  const menuEl = document.getElementById('menu');
+  const menuEmoji = { meadow: '🌱', desert: '🏜', snow: '❄️', volcano: '🌋', night: '🌃', ocean: '🌊', swamp: '🐊', space: '🚀' };
+  const menuName = { meadow: 'Луг', desert: 'Пустыня', snow: 'Снега', volcano: 'Вулкан', night: 'Ночь', ocean: 'Океан', swamp: 'Болото', space: 'Космос' };
+  const SHOP = [
+    { id: 'ammo5', emoji: '🔫', name: '+5 патронов', desc: '+5 дроби на каждом уровне', price: 30 },
+    { id: 'totem2', emoji: '🐾', name: 'Двойной тотем', desc: 'тотем спасает два раза', price: 50 },
+    { id: 'boots', emoji: '👟', name: 'Тапки скорости', desc: '+10% к макс. скорости', price: 40 },
+    { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 60 },
+  ];
+  function showMenuScr(s) {
+    for (const [id, name] of [['menuRoot', 'root'], ['menuPlayScr', 'play'], ['menuShopScr', 'shop'], ['menuSetScr', 'settings']]) {
+      document.getElementById(id).classList.toggle('hidden', name !== s);
+    }
+    document.getElementById('bankVal').textContent = bank;
+    document.getElementById('bankVal2').textContent = bank;
+  }
+  function renderLvlGrid() {
+    const g = document.getElementById('lvlGrid');
+    g.innerHTML = '';
+    LEVELS.forEach((l, i) => {
+      const b = document.createElement('button');
+      if (i + 1 > unlocked) {
+        b.classList.add('locked');
+        b.textContent = '🔒 ' + menuEmoji[l.theme] + ' ' + (i + 1);
+      } else {
+        b.textContent = menuEmoji[l.theme] + ' L' + (i + 1) + ' ' + menuName[l.theme];
+        b.onclick = () => { ac(); startLevel(i); };
+      }
+      g.appendChild(b);
+    });
+  }
+  function renderShop() {
+    const list = document.getElementById('shopList');
+    list.innerHTML = '';
+    SHOP.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'shopitem';
+      const info = document.createElement('div');
+      info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">' + it.desc + '</span>';
+      row.appendChild(info);
+      const btn = document.createElement('button');
+      if (owned[it.id]) {
+        row.classList.add('owned');
+        btn.textContent = '✓ Куплено';
+        btn.disabled = true;
+      } else {
+        btn.textContent = '💰 ' + it.price;
+        btn.disabled = bank < it.price;
+        btn.onclick = () => {
+          if (bank < it.price) return;
+          bank -= it.price;
+          owned[it.id] = true;
+          saveProg();
+          updateHud();
+          renderShop();
+        };
+      }
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
+    document.getElementById('bankVal2').textContent = bank;
+  }
+  function setMuted(v) {
+    muted = v;
+    try { localStorage.setItem('pf_muted', v ? '1' : '0'); } catch (e) {}
+    const sb = document.getElementById('setSound');
+    sb.textContent = muted ? 'ВЫКЛ' : 'ВКЛ';
+    sb.classList.toggle('off', muted);
+  }
+  function setShowAim(v) {
+    showAimDot = v;
+    try { localStorage.setItem('pf_aim', v ? '1' : '0'); } catch (e) {}
+    const ab = document.getElementById('setAim');
+    ab.textContent = showAimDot ? 'ВКЛ' : 'ВЫКЛ';
+    ab.classList.toggle('off', !showAimDot);
+  }
+  document.getElementById('menuPlay').onclick = () => { ac(); renderLvlGrid(); showMenuScr('play'); };
+  document.getElementById('menuShop').onclick = () => { ac(); renderShop(); showMenuScr('shop'); };
+  document.getElementById('menuSettings').onclick = () => { ac(); showMenuScr('settings'); };
+  document.getElementById('backFromPlay').onclick = () => showMenuScr('root');
+  document.getElementById('backFromShop').onclick = () => showMenuScr('root');
+  document.getElementById('backFromSet').onclick = () => showMenuScr('root');
+  document.getElementById('btnFullRun').onclick = () => { ac(); startLevel(0); };
+  document.getElementById('setSound').onclick = () => setMuted(!muted);
+  document.getElementById('setAim').onclick = () => setShowAim(!showAimDot);
+  document.getElementById('setReset').onclick = () => {
+    if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
+    bank = 0; unlocked = 1; owned = {}; score = 0;
+    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_best'); } catch (e) {}
+    setMuted(false);
+    setShowAim(true);
+    updateHud();
+    showMenuScr('root');
+  };
+  setMuted(muted);
+  setShowAim(showAimDot);
+  showMenuScr('root');
 
   const adminPanel = document.getElementById('admin');
   const adminBtn = document.getElementById('adminBtn');
@@ -1812,7 +2023,7 @@
     const on = e => {
       e.preventDefault();
       ac();
-      if (k === 'jump') { if (state === 'menu') start(); keys.jump = true; }
+      if (k === 'jump') { if (state === 'menu') startLevel(0); keys.jump = true; }
       else if (k === 'pet') tryPet();
       else if (k === 'gun') fire();
       else keys[k] = true;
