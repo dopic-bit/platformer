@@ -57,12 +57,31 @@
     font-size: 17px; font-weight: 700; cursor: pointer; transition: transform .12s;
   }
   #overlay .btn:hover { transform: scale(1.05); }
-  #hint {
-    position: absolute; bottom: 12px; width: 100%; text-align: center;
-    color: #9aa8bf; font-size: 13px; pointer-events: none;
-    display: none;
+  #controlsWnd {
+    position: absolute; inset: 0; z-index: 70; display: flex;
+    align-items: center; justify-content: center;
+    background: rgba(10,14,22,.45); border-radius: 16px;
   }
-  body.showHint #hint { display: block; }
+  #controlsWnd.hidden { display: none; }
+  .cwnd {
+    width: 300px; background: rgba(22,26,34,.95); border-radius: 12px;
+    padding: 14px 16px; color: #dfe6f2; font: 13px Segoe UI, system-ui, sans-serif;
+  }
+  .cwnd h3 { margin: 0 0 8px; font-size: 16px; color: #ffd76b; }
+  .crow { display: flex; justify-content: space-between; padding: 4px 0; }
+  .crow b { color: #ffd76b; }
+  #ctrlClose {
+    margin-top: 8px; width: 100%; padding: 8px; border: none; border-radius: 999px;
+    background: #ff6b6b; color: #fff; font: 700 14px Segoe UI, system-ui, sans-serif; cursor: pointer;
+  }
+  .tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .tabs.sub { margin-top: 6px; }
+  .tab {
+    padding: 7px 14px; border: none; border-radius: 999px;
+    background: #2c3547; color: #aab6cb; font: 700 13.5px Segoe UI, system-ui, sans-serif;
+    cursor: pointer;
+  }
+  .tab.on { background: #ff6b6b; color: #fff; }
   #touch { position: absolute; inset: 0; display: none; }
   #touch div {
     position: absolute; bottom: 16px; width: 72px; height: 72px; border-radius: 50%;
@@ -75,7 +94,7 @@
   #touch .pet { right: 104px; }
   #touch .gun { right: 192px; }
   body.touch #touch { display: block; }
-  body.touch #hint { display: none; }
+
   #adminBtn {
     position: absolute; top: 52px; right: 16px;
     padding: 3px 10px; font-size: 14px; border: none; border-radius: 8px;
@@ -168,6 +187,15 @@
     <div id="menuShopScr" class="mscr hidden">
       <div class="mhead">🛒 МАГАЗИН</div>
       <div class="mbank">💰 В банке: <span id="bankVal2">0</span></div>
+      <div class="tabs">
+        <button class="tab" id="tabUpg">⚙ Улучшения</button>
+        <button class="tab" id="tabCos">👒 Косметика</button>
+      </div>
+      <div class="tabs sub hidden" id="cosTabs">
+        <button class="tab" id="cosHead">🎩 Головные уборы</button>
+        <button class="tab" id="cosFace">🕶 Очки·Маски</button>
+        <button class="tab" id="cosTrail">🌈 След</button>
+      </div>
       <div id="shopList" style="display:flex;flex-direction:column;gap:6px;"></div>
       <button class="mback" id="backFromShop">← Назад</button>
     </div>
@@ -193,7 +221,21 @@
     <div class="pet" data-k="pet">🐾</div>
     <div class="jump" data-k="jump">↑</div>
   </div>
-  <div id="hint">← → двигаться &nbsp;·&nbsp; ↑ прыгать &nbsp;·&nbsp; X — дробовик &nbsp;·&nbsp; E — погладить кошку &nbsp;·&nbsp; M — звук &nbsp;·&nbsp; R — заново &nbsp;·&nbsp; ~ — админка</div>
+
+  <div id="controlsWnd" class="hidden">
+    <div class="cwnd">
+      <h3>🎮 УПРАВЛЕНИЕ</h3>
+      <div class="crow"><span>Движение</span><b>← → или A / D</b></div>
+      <div class="crow"><span>Прыжок</span><b>↑ / W / Пробел</b></div>
+      <div class="crow"><span>Дробовик</span><b>X / F / клик мыши</b></div>
+      <div class="crow"><span>Прицел</span><b>мышь</b></div>
+      <div class="crow"><span>Погладить кошку</span><b>E</b></div>
+      <div class="crow"><span>Звук</span><b>M</b></div>
+      <div class="crow"><span>Пауза/меню</span><b>ESC</b></div>
+      <div class="crow"><span>Админ-панель</span><b>~</b></div>
+      <button id="ctrlClose">Понятно</button>
+    </div>
+  </div>
   <button id="adminBtn" title="Админ-панель (~)">🛠</button>
   <div id="admin" class="hidden">
     <h3>⚡ АДМИН-ПАНЕЛЬ</h3>
@@ -927,9 +969,12 @@
     if (player.onGround) {
       lastSafe = { x: player.x, y: player.y };
     }
-    if (hasIt('trail') && Math.abs(player.vx) > 0.8) {
-      const hue = Math.floor(time * 140) % 360;
-      spawnParticles(player.x + player.w / 2, player.y + 15, 'hsl(' + hue + ',95%,60%)', 1, 1.5, 0.6);
+    const tk = trailKind();
+    if (tk && Math.abs(player.vx) > 0.8) {
+      const pal = tk === 'rainbow' ? 'hsl(' + (Math.floor(time * 140) % 360) + ',95%,60%)'
+        : tk === 'fire' ? ['#ff5722', '#ff9800', '#ffc107'][Math.floor(time * 20) % 3]
+        : ['#7fd8ff', '#b3ecff', '#5bc0f8'][Math.floor(time * 20) % 3];
+      spawnParticles(player.x + player.w / 2, player.y + 15, pal, 1, 1.5, 0.6);
     }
     coyote = player.onGround ? 7 : Math.max(0, coyote - 1);
 
@@ -1312,6 +1357,15 @@
       ctx.fillStyle = 'rgba(255,255,255,.35)';
       ctx.fillRect(ex - 8, y + 7, 5, 2);
       ctx.fillRect(ex + 3, y + 7, 5, 2);
+    }
+
+    if (hasIt('mustache')) {
+      ctx.fillStyle = '#4a2f18';
+      ctx.beginPath();
+      ctx.ellipse(ex - 5, y + 17.5, 6, 2.5, 0.35, 0, Math.PI * 2);
+      ctx.ellipse(ex + 5, y + 17.5, 6, 2.5, -0.35, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
     }
 
     ctx.save();
@@ -1908,7 +1962,7 @@
     }
     if (e.code === 'Escape' && state === 'play') toMenu();
     if (['KeyX','KeyF'].includes(e.code)) fire();
-    if (e.code === 'KeyH') document.body.classList.toggle('showHint');
+    if (e.code === 'KeyH') document.getElementById('controlsWnd').classList.toggle('hidden');
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
     if (e.code === 'Backquote') adminPanel.classList.toggle('hidden');
@@ -1933,11 +1987,20 @@
     { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 150 },
   ];
   const COSMETICS = [
-    { id: 'hat', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
-    { id: 'trail', emoji: '🌈', name: 'Радужный след', desc: 'персонаж оставляет радугу', price: 1500 },
-    { id: 'glasses', emoji: '🕶', name: 'Стильные очки', desc: 'бандит с прищуром', price: 1800 },
-    { id: 'crown', emoji: '👑', name: 'Корона', desc: 'для королей платформеров', price: 2500 },
+    { id: 'hat', cat: 'head', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
+    { id: 'crown', cat: 'head', emoji: '👑', name: 'Корона', desc: 'для королей платформеров', price: 2500 },
+    { id: 'glasses', cat: 'face', emoji: '🕶', name: 'Стильные очки', desc: 'тёмные очки с бликом', price: 1800 },
+    { id: 'mustache', cat: 'face', emoji: '🥸', name: 'Усы бандита', desc: 'солидности добавляют', price: 1200 },
+    { id: 'trailrain', cat: 'trail', emoji: '🌈', name: 'Радужный след', desc: 'персонаж оставляет радугу', price: 1500 },
+    { id: 'trailfire', cat: 'trail', emoji: '🔥', name: 'Огненный след', desc: 'пламя за спиной', price: 1800 },
+    { id: 'trailice', cat: 'trail', emoji: '❄️', name: 'Ледяной след', desc: 'морозный вихрь', price: 1200 },
   ];
+  function trailKind() {
+    if (owned.trailrain) return 'rainbow';
+    if (owned.trailfire) return 'fire';
+    if (owned.trailice) return 'ice';
+    return null;
+  }
   function showMenuScr(s) {
     for (const [id, name] of [['menuRoot', 'root'], ['menuPlayScr', 'play'], ['menuShopScr', 'shop'], ['menuSetScr', 'settings']]) {
       document.getElementById(id).classList.toggle('hidden', name !== s);
@@ -1960,15 +2023,21 @@
       g.appendChild(b);
     });
   }
+  let shopTab = 'upg', cosTab = 'head';
   function renderShop() {
     const list = document.getElementById('shopList');
     list.innerHTML = '';
-    const head1 = document.createElement('div');
-    head1.className = 'mhead';
-    head1.style.fontSize = '16px';
-    head1.textContent = '⚙ УЛУЧШЕНИЯ';
-    list.appendChild(head1);
-    SHOP.forEach(it => {
+    const tU = document.getElementById('tabUpg');
+    const tC = document.getElementById('tabCos');
+    tU.classList.toggle('on', shopTab === 'upg');
+    tC.classList.toggle('on', shopTab === 'cos');
+    const cT = document.getElementById('cosTabs');
+    cT.classList.toggle('hidden', shopTab !== 'cos');
+    document.getElementById('cosHead').classList.toggle('on', cosTab === 'head');
+    document.getElementById('cosFace').classList.toggle('on', cosTab === 'face');
+    document.getElementById('cosTrail').classList.toggle('on', cosTab === 'trail');
+    const items = shopTab === 'upg' ? SHOP : COSMETICS.filter(c => c.cat === cosTab);
+    items.forEach(it => {
       const row = document.createElement('div');
       row.className = 'shopitem';
       const info = document.createElement('div');
@@ -1994,39 +2063,13 @@
       row.appendChild(btn);
       list.appendChild(row);
     });
-    const head2 = document.createElement('div');
-    head2.className = 'mhead';
-    head2.style.fontSize = '16px';
-    head2.style.marginTop = '10px';
-    head2.textContent = '👒 КОСМЕТИКА';
-    list.appendChild(head2);
-    COSMETICS.forEach(it => {
-      const row = document.createElement('div');
-      row.className = 'shopitem';
-      const info = document.createElement('div');
-      info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">' + it.desc + '</span>';
-      row.appendChild(info);
-      const btn = document.createElement('button');
-      if (owned[it.id]) {
-        row.classList.add('owned');
-        btn.textContent = '✓ Куплено';
-        btn.disabled = true;
-      } else {
-        btn.textContent = '💰 ' + it.price;
-        btn.disabled = bank < it.price;
-        btn.onclick = () => {
-          if (bank < it.price) return;
-          bank -= it.price;
-          owned[it.id] = true;
-          saveProg();
-          renderShop();
-        };
-      }
-      row.appendChild(btn);
-      list.appendChild(row);
-    });
     document.getElementById('bankVal2').textContent = bank;
   }
+  document.getElementById('tabUpg').onclick = () => { ac(); shopTab = 'upg'; renderShop(); };
+  document.getElementById('tabCos').onclick = () => { ac(); shopTab = 'cos'; renderShop(); };
+  document.getElementById('cosHead').onclick = () => { ac(); cosTab = 'head'; renderShop(); };
+  document.getElementById('cosFace').onclick = () => { ac(); cosTab = 'face'; renderShop(); };
+  document.getElementById('cosTrail').onclick = () => { ac(); cosTab = 'trail'; renderShop(); };
 
   function setMuted(v) {
     muted = v;
@@ -2064,6 +2107,9 @@
   setShowAim(showAimDot);
   showMenuScr('root');
 
+  const controlsWnd = document.getElementById('controlsWnd');
+  document.getElementById('ctrlClose').onclick = () => controlsWnd.classList.add('hidden');
+  controlsWnd.addEventListener('click', e => { if (e.target === controlsWnd) controlsWnd.classList.add('hidden'); });
   const adminPanel = document.getElementById('admin');
   const adminBtn = document.getElementById('adminBtn');
   adminBtn.addEventListener('mousedown', e => e.stopPropagation());
