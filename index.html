@@ -795,7 +795,24 @@
         } else list.push(genLevel(ci, si));
       }
     }
+    list.push(buildFinal());
     return list;
+  }
+  function buildFinal() {
+    const platforms = [[0, 430], [530, 430], [1060, 430], [1590, 430], [2120, 430]].map(iv => ({ x: iv[0], y: 440, w: iv[1], h: 40 }));
+    platforms.push({ x: 2640, y: 440, w: 1500, h: 40 });
+    for (const he of [430, 960, 1490, 2020, 2550]) platforms.push({ x: he - 95, y: 380, w: 64, h: 60 });
+    return {
+      width: 3900, theme: 'space', final: true,
+      spawn: { x: 60, y: 380 },
+      cat: { x: 120, y: 406 },
+      platforms,
+      coins: [], spikes: [], enemies: [],
+      checkpoints: [{ x: 2680, y: 380 }, { x: 3350, y: 380 }],
+      ammo: [{ x: 900, y: 380 }, { x: 1450, y: 380 }, { x: 2000, y: 380 }, { x: 2920, y: 380 }],
+      boss: null,
+      flag: { x: 3830, y: 380 },
+    };
   }
   const LEVELS = buildAll();
 
@@ -803,50 +820,50 @@
     meadow: { body: '#4c8f45', dark: '#2c5f2a', name: 'ЛЕСНОЙ ЛЕШИЙ', kind: 'leshy',
       atks: [
         { t: 'haz', type: 'rise', shape: 'tree', col: '#7a5230', col2: '#4c8f45', msg: 'Тебя придавило деревом!' },
-        { t: 'haz2', type: 'rise', shape: 'root', col: '#5d4326', col2: '#4c8f45', msg: 'Корниобработал тебя!' },
-        { t: 'shot', n: 3, shape: 'pinecone', col: '#8a5a2b', smsg: 'Шишечный обстрел!' },
+        { t: 'roll', shape: 'log', col: '#7a5230', col2: '#4c8f45', msg: 'Бревно расплющило!' },
+        { t: 'volley', n: 3, shape: 'pinecone', col: '#8a5a2b', smsg: 'Шишечный залп!' },
       ] },
-    desert: { body: '#c9995b', dark: '#8a6437', name: 'СУЛТАН ПЕСКОВ', kind: 'sultan',
+    desert: { body: '#cfc9bd', dark: '#8a8377', name: 'ВЕЛИКАЯ МУМИЯ', kind: 'mummy',
       atks: [
-        { t: 'haz', type: 'rise', shape: 'dune', col: '#d8a866', col2: '#b3804c', msg: 'Дюна подкинула тебя!' },
-        { t: 'haz2', type: 'rise', shape: 'dune', col: '#d8a866', col2: '#b3804c', msg: 'Две дюны в клещи!' },
-        { t: 'shot', n: 3, shape: 'sandbolt', col: '#d8a866', smsg: 'Песчаный снайпер!' },
+        { t: 'pool', col: '#d8b26a', col2: '#b3804c', msg: 'Зыбучий песок затянул тебя!' },
+        { t: 'sweep', shape: 'tornado', col: '#d8a866', col2: '#f0e6d0', msg: 'Песчаный вихрь смёл тебя!' },
+        { t: 'volley', n: 3, shape: 'sandbolt', col: '#d8a866', smsg: 'Песчаный снайпер!' },
       ] },
     snow: { body: '#9fc4e8', dark: '#5f87ad', name: 'ЛЕДЯНОЙ ЛЮТЫЙ', kind: 'yeti',
       atks: [
         { t: 'haz', type: 'fall', shape: 'icicle', col: '#bfe4ff', col2: '#7fb8e8', msg: 'Сосулька пронзила тебя!' },
-        { t: 'haz2', type: 'fall', shape: 'icicle', col: '#bfe4ff', col2: '#7fb8e8', msg: 'Ледяной град накрыл тебя!' },
-        { t: 'shot', n: 3, shape: 'shard', col: '#bfe4ff', smsg: 'Ледяное лезвие!' },
+        { t: 'roll', shape: 'snowball', col: '#f4f9ff', col2: '#bfe4ff', msg: 'Снежный ком расплющил тебя!' },
+        { t: 'volley', n: 3, shape: 'shard', col: '#bfe4ff', smsg: 'Ледяное лезвие!' },
       ] },
     volcano: { body: '#c04a2a', dark: '#7a2a16', name: 'ЛАВОВЫЙ КОРОЛЬ', kind: 'golem',
       atks: [
         { t: 'haz', type: 'rise', shape: 'lava', col: '#ff7a33', col2: '#ffd76e', msg: 'Лава сожгла тебя!' },
-        { t: 'haz2', type: 'rise', shape: 'lava', col: '#ff7a33', col2: '#ffd76e', msg: 'Двойной гейзер тебя сварил!' },
-        { t: 'shot', n: 2, shape: 'cinder', col: '#ff7a33', smsg: 'Шлак влепился!' },
+        { t: 'pool', col: '#ff7a33', col2: '#ffd76e', msg: 'Лужа лавы поджарила тебя!' },
+        { t: 'volley', n: 2, shape: 'cinder', col: '#ff7a33', smsg: 'Шлак влепился!' },
       ] },
     night: { body: '#3a4668', dark: '#232c44', name: 'ТЕНЕВОЙ ОХОТНИК', kind: 'wraith',
       atks: [
         { t: 'haz', type: 'rise', shape: 'shadow', col: '#1a2138', col2: '#5568b8', msg: 'Тень утащила тебя!' },
-        { t: 'haz2', type: 'rise', shape: 'shadow', col: '#1a2138', col2: '#5568b8', msg: 'Тени сомкнулись!' },
-        { t: 'shot', n: 3, shape: 'shadoworb', col: '#5568b8', smsg: 'Теневой шар!' },
+        { t: 'sweep', shape: 'shadow', col: '#1a2138', col2: '#5568b8', msg: 'Волна теней поглотила тебя!' },
+        { t: 'volley', n: 3, shape: 'shadoworb', col: '#5568b8', smsg: 'Теневой шар!' },
       ] },
     ocean: { body: '#3f7d8c', dark: '#28565f', name: 'КРАБ-МУТАНТ', kind: 'crab',
       atks: [
         { t: 'haz', type: 'rise', shape: 'water', col: '#5bc0de', col2: '#eafcff', msg: 'Волна сшибла тебя!' },
-        { t: 'haz2', type: 'rise', shape: 'water', col: '#5bc0de', col2: '#eafcff', msg: 'Волны взяли в клещи!' },
-        { t: 'shot', n: 3, shape: 'bubble', col: '#7fd8ff', smsg: 'Пузырёг разгромил!' },
+        { t: 'sweep', shape: 'wave', col: '#5bc0de', col2: '#eafcff', msg: 'Девятый вал накрыл тебя!' },
+        { t: 'volley', n: 3, shape: 'bubble', col: '#7fd8ff', smsg: 'Пузырёг разгромил!' },
       ] },
     swamp: { body: '#5d7a35', dark: '#3a5220', name: 'БОЛОТНЫЙ ЖУХ', kind: 'bog',
       atks: [
         { t: 'haz', type: 'rise', shape: 'root', col: '#4d5d33', col2: '#77903f', msg: 'Корень схватил тебя!' },
-        { t: 'haz2', type: 'rise', shape: 'root', col: '#4d5d33', col2: '#77903f', msg: 'Корни сомкнулись!' },
-        { t: 'shot', n: 3, shape: 'acid', col: '#9ab35c', smsg: 'Кислота разъела!' },
+        { t: 'pool', col: '#9ab35c', col2: '#77903f', msg: 'Кислотная жижа растворила тебя!' },
+        { t: 'volley', n: 3, shape: 'acid', col: '#9ab35c', smsg: 'Кислота разъела!' },
       ] },
     space: { body: '#6d2f7a', dark: '#4a1e54', name: 'ЗЛОЙ ДРЫН', kind: 'dryn',
       atks: [
         { t: 'haz', type: 'fall', shape: 'meteor', col: '#ff8c3d', col2: '#ffd76e', msg: 'Метеор снёс тебя!' },
-        { t: 'haz2', type: 'fall', shape: 'meteor', col: '#ff8c3d', col2: '#ffd76e', msg: 'Метеоритный дождь накрыл!' },
-        { t: 'shot', n: 4, shape: 'plasma', col: '#c88ae0', smsg: 'Плазма испарила!' },
+        { t: 'sweep', shape: 'beam', col: '#c88ae0', col2: '#ffd76e', msg: 'Тёмный разряд прошёл сквозь тебя!' },
+        { t: 'volley', n: 4, shape: 'plasma', col: '#c88ae0', smsg: 'Плазма испарила!' },
       ] },
   };
   const ENEMY_LOOK = {
@@ -864,6 +881,17 @@
       '👑 8 глав. 8 боссов. Верни монеты. Стань легендой!',
     ],
   };
+  const MEGA_PARTS = [
+    { theme: 'swamp', ox: -76, oy: -48, hp: 2 },
+    { theme: 'desert', ox: 12, oy: -48, hp: 2 },
+    { theme: 'volcano', ox: -76, oy: -102, hp: 2 },
+    { theme: 'snow', ox: 12, oy: -102, hp: 2 },
+    { theme: 'meadow', ox: -120, oy: -152, hp: 2 },
+    { theme: 'ocean', ox: 56, oy: -152, hp: 2 },
+    { theme: 'night', ox: -32, oy: -156, hp: 2 },
+    { theme: 'space', ox: -32, oy: -212, hp: 3 },
+  ];
+
   const CHAPTER_CUTS = {
     meadow: { emoji: '🌿', bg: 'linear-gradient(160deg,#2f5d3a,#141d16)', title: 'ГЛАВА 1 · ЛУГ', lines: [
       '🌿 Зелёные луга. Пахнет травой и приключениями.',
@@ -872,8 +900,8 @@
     ] },
     desert: { emoji: '🏜️', bg: 'linear-gradient(160deg,#7a5a2a,#241a0e)', title: 'ГЛАВА 2 · ПУСТЫНЯ', lines: [
       '🌵 Пески горячие, как сковородка.',
-      '🦂 Здесь даже слизни ходят в сомбреро.',
-      '💰 Говорят, монеты охраняет Султан песков!',
+      '🦂 Даже кактусы здесь с глазами. Держись подальше от песка.',
+      '💰 Что-то шевелится под дюнами. Беги.'
     ] },
     snow: { emoji: '❄️', bg: 'linear-gradient(160deg,#3a5a80,#16202c)', title: 'ГЛАВА 3 · СНЕГА', lines: [
       '❄️ Мороз трещит, монеты замерзают.',
@@ -905,6 +933,11 @@
       '🌟 Здесь заканчивается путь, и начинается Злой Дрын.',
       '💀 Запасись патронами. Отбей монеты мира!',
     ] },
+    final: { emoji: '🔥', bg: 'linear-gradient(160deg,#3a1a4a,#0b0a1e)', title: 'ФИНАЛ · МЕГА-ДРЫН', lines: [
+      '🔥 Восемь боссов тебя не остановили.',
+      '👾 Тогда Злой Дрын сжал их в одного МЕГА-ДРЫНА.',
+      '🏃 Беги от него через руки. В финале — арена: отстреливай части!',
+    ] },
   };
 
   const GRAV = 0.55, MOVE = 1.1, MAX_VX = 4.2, JUMP = 11.5, FRICTION = 0.72, MAX_FALL = 12, LAND_TOL = 4;
@@ -925,7 +958,7 @@
 
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
-  let boss = null, fireballs = [], bossHazes = [], coyote = 0, playT = 0, lastSec = -1;
+  let boss = null, fireballs = [], bossHazes = [], coyote = 0, playT = 0, lastSec = -1, mega = null;
   let aim = { mx: null, my: null };
   let god = false, infAmmo = false;
   let bank = +(localStorage.getItem('pf_bank') || 0) || 0;
@@ -964,6 +997,10 @@
     bullets = [];
     fireballs = [];
     boss = lvl.boss ? { x: lvl.boss.x, y: lvl.boss.y, w: 64, h: 56, dir: -1, hp: lvl.boss.hp, maxHp: lvl.boss.hp, dead: false, iframes: 0, wind: 0, atk: 90, next: 0, x1: lvl.boss.x1, x2: lvl.boss.x2, aggro: false } : null;
+    mega = lvl.final ? {
+      phase: 'chase', x: -460, atk: 150, wind: 0, mv: null, dead: false,
+      parts: MEGA_PARTS.map(p => ({ theme: p.theme, ox: p.ox, oy: p.oy, hp0: p.hp, hp: p.hp, dead: false, flash: 0 })),
+    } : null;
     bossHazes = [];
     maxVx = MAX_VX;
     ammo += hasIt('ammo5') ? 5 : 0;
@@ -992,6 +1029,9 @@
     keys.jump = false;
     appearT = 24;
     deathT = 0;
+    if (mega && !mega.dead && mega.phase === 'chase') {
+      mega.x = Math.max(-460, Math.min(mega.x, player.x - 500));
+    }
   }
 
   function saveDeath(cause) {
@@ -1114,6 +1154,30 @@
             flash('БОСС ПОВЕРЖЕН!', 100);
           } else {
             flash('Босс: ' + boss.hp + ' hp', 40);
+          }
+        }
+      }
+      if (b.dead) continue;
+      if (mega && !mega.dead && mega.phase === 'fight') {
+        for (const pt of mega.parts) {
+          if (pt.dead) continue;
+          const pr = { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 };
+          if (rectsHit(b, pr)) {
+            b.dead = true;
+            pt.hp--;
+            pt.flash = 12;
+            SFX.bossHit();
+            shake = Math.max(shake, 5);
+            spawnParticles(b.x, b.y, BOSS_SKINS[pt.theme].body, 10, 5, 3);
+            if (pt.hp <= 0) {
+              pt.dead = true;
+              bank += 40; saveProg(); updateHud();
+              SFX.bossDie();
+              shake = 12;
+              flash(BOSS_SKINS[pt.theme].name + ': ЧАСТЬ СНЯТА!', 110);
+              spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 26, 8, 4);
+            }
+            break;
           }
         }
       }
@@ -1295,7 +1359,7 @@
         if (boss.wind === 0) {
           const skin0 = BOSS_SKINS[lvl.theme];
           const def = skin0.atks[boss.next] || skin0.atks[0];
-          if (def.t === 'shot') {
+          if (def.t === 'volley') {
             const mlx = boss.x + 25, mly = boss.y + 18;
             const tdx = (player.x + player.w / 2) - (mlx + 7), tdy = (player.y + 17) - (mly + 7);
             const base = Math.atan2(tdy, tdx);
@@ -1310,18 +1374,30 @@
               });
             }
             SFX.bossSpit();
-          } else {
+          } else if (def.t === 'pool') {
             const px0 = player.x + player.w / 2;
-            const mkHaz = (px) => {
-              let gy0 = 440;
-              for (const p of platforms) {
-                if (p.h >= 40 && px >= p.x && px <= p.x + p.w) { gy0 = p.y; break; }
-              }
-              const cx = Math.max(boss.x1 + 40, Math.min(boss.x2 - 40, px));
-              bossHazes.push({ x: cx, ground: gy0, t: 46, phase: 'warn', type: def.type, shape: def.shape, col: def.col, col2: def.col2, msg: def.msg });
-            };
-            mkHaz(px0);
-            if (def.t === 'haz2') mkHaz(px0 + (player.x + 15 > boss.x + 32 ? 150 : -150));
+            let gy0 = 440;
+            for (const p of platforms) {
+              if (p.h >= 40 && px0 >= p.x && px0 <= p.x + p.w) { gy0 = p.y; break; }
+            }
+            bossHazes.push({ kind: 'pool', phase: 'warn', t: 52, x: px0, ground: gy0, col: def.col, col2: def.col2, msg: def.msg });
+            SFX.bossCharge();
+          } else if (def.t === 'sweep') {
+            const fromL = player.x + 15 > (boss.x1 + boss.x2) / 2;
+            bossHazes.push({ kind: 'sweep', phase: 'warn', t: 52, x: fromL ? boss.x1 - 20 : boss.x2 + 20, dir: fromL ? 1 : -1, v: 3.4, dur: Math.ceil((boss.x2 - boss.x1 + 120) / 3.4), ground: 440, shape: def.shape, col: def.col, col2: def.col2, msg: def.msg });
+            SFX.bossCharge();
+          } else if (def.t === 'roll') {
+            const fromL = player.x + 15 > (boss.x1 + boss.x2) / 2;
+            bossHazes.push({ kind: 'roll', phase: 'warn', t: 52, x: fromL ? boss.x1 - 20 : boss.x2 + 20, dir: fromL ? 1 : -1, v: 4.3, ground: 440, shape: def.shape, col: def.col, col2: def.col2, msg: def.msg });
+            SFX.bossCharge();
+          } else if (def.t === 'haz') {
+            const px0 = player.x + player.w / 2;
+            let gy0 = 440;
+            for (const p of platforms) {
+              if (p.h >= 40 && px0 >= p.x && px0 <= p.x + p.w) { gy0 = p.y; break; }
+            }
+            const cx = Math.max(boss.x1 + 40, Math.min(boss.x2 - 40, px0));
+            bossHazes.push({ x: cx, ground: gy0, t: 46, phase: 'warn', type: def.type, shape: def.shape, col: def.col, col2: def.col2, msg: def.msg });
             SFX.bossCharge();
           }
           boss.atk = 170;
@@ -1339,26 +1415,107 @@
       }
       for (const hzo of bossHazes) {
         hzo.t--;
-        if (hzo.phase === 'warn' && hzo.t <= 0) {
-          hzo.phase = 'strike';
-          hzo.t = 50;
-          SFX.bossSpit();
-          shake = Math.max(shake, 4);
-        } else if (hzo.phase === 'strike') {
-          const pr = 1 - hzo.t / 50;
-          let hz;
-          if (hzo.type === 'fall') {
-            const yf = -40 + pr * (hzo.ground + 40);
-            hz = { x: hzo.x - 16, y: yf - 14, w: 32, h: 42 };
-          } else {
-            const hgt = Math.min(1, pr * 1.5) * 120;
-            hz = { x: hzo.x - 19, y: hzo.ground - hgt, w: 38, h: hgt };
+        if (hzo.kind === 'pool') {
+          if (hzo.phase === 'warn' && hzo.t <= 0) {
+            hzo.phase = 'active';
+            hzo.t = 190;
+            shake = Math.max(shake, 3);
+          } else if (hzo.phase === 'active') {
+            const hz = { x: hzo.x - 55, y: hzo.ground - 10, w: 110, h: 12 };
+            if (!god && safeT === 0 && rectsHit(body, hz, -4)) { onDeath(hzo.msg); return; }
           }
-          if (hzo.t > 2 && !god && safeT === 0 && rectsHit(body, hz, -4)) { onDeath(hzo.msg); return; }
+        } else if (hzo.kind === 'sweep') {
+          if (hzo.phase === 'warn' && hzo.t <= 0) {
+            hzo.phase = 'strike';
+            hzo.t = hzo.dur;
+            SFX.bossSpit();
+            shake = Math.max(shake, 4);
+          } else if (hzo.phase === 'strike') {
+            hzo.x += hzo.dir * hzo.v;
+            const hz = { x: hzo.x - 20, y: hzo.ground - 110, w: 40, h: 112 };
+            if (!god && safeT === 0 && rectsHit(body, hz, -4)) { onDeath(hzo.msg); return; }
+          }
+        } else if (hzo.kind === 'roll') {
+          if (hzo.phase === 'warn' && hzo.t <= 0) {
+            hzo.phase = 'strike';
+            hzo.t = 400;
+            SFX.bossSpit();
+            shake = Math.max(shake, 3);
+          } else if (hzo.phase === 'strike') {
+            hzo.x += hzo.dir * hzo.v;
+            const hz = { x: hzo.x - 20, y: hzo.ground - 40, w: 40, h: 42 };
+            if (!god && safeT === 0 && rectsHit(body, hz, -4)) { onDeath(hzo.msg); return; }
+          }
+        } else {
+          if (hzo.phase === 'warn' && hzo.t <= 0) {
+            hzo.phase = 'strike';
+            hzo.t = 50;
+            SFX.bossSpit();
+            shake = Math.max(shake, 4);
+          } else if (hzo.phase === 'strike') {
+            const pr = 1 - hzo.t / 50;
+            let hz;
+            if (hzo.type === 'fall') {
+              const yf = -40 + pr * (hzo.ground + 40);
+              hz = { x: hzo.x - 16, y: yf - 14, w: 32, h: 42 };
+            } else {
+              const hgt = Math.min(1, pr * 1.5) * 120;
+              hz = { x: hzo.x - 19, y: hzo.ground - hgt, w: 38, h: hgt };
+            }
+            if (hzo.t > 2 && !god && safeT === 0 && rectsHit(body, hz, -4)) { onDeath(hzo.msg); return; }
+          }
         }
       }
-      bossHazes = bossHazes.filter(h => h.t > 0);
+      bossHazes = bossHazes.filter(h => (h.kind === 'roll' ? !(h.phase === 'strike' && (h.t <= 0 || h.x < boss.x1 - 60 || h.x > boss.x2 + 60)) : h.t > 0));
       if (!god && safeT === 0 && rectsHit(body, boss, -4)) { onDeath('Босс тебя раздавил!'); return; }
+    }
+
+    if (mega && !mega.dead) {
+      for (const pt of mega.parts) if (pt.flash > 0) pt.flash--;
+      if (mega.phase === 'chase') {
+        mega.x += 2.9 * (1 + Math.min(0.35, playT / 4200));
+        shake = Math.max(shake, 1);
+        if (Math.random() < 0.004) flash('БЕГИ!', 60);
+        if (!god && safeT === 0 && rectsHit(body, { x: mega.x + 20, y: 170, w: 190, h: 270 }, -6)) { onDeath('Мегазорд тебя раздавил!'); return; }
+        if (player.x > 2560) mega.phase = 'fight';
+      } else {
+        mega.x += (2540 - mega.x) * 0.03;
+        if (player.x < 2500) mega.phase = 'chase';
+        if (mega.wind > 0) {
+          mega.wind--;
+          if (mega.wind === 0) {
+            if (mega.mv === 'plasma') {
+              const mlx = mega.x + 96, mly = 260;
+              const tdx = (player.x + 15) - mlx, tdy = (player.y + 17) - mly;
+              const base = Math.atan2(tdy, tdx);
+              for (let k = 0; k < 4; k++) {
+                const ang2 = base + (k - 1.5) * 0.2;
+                fireballs.push({ x: mlx, y: mly, w: 14, h: 14, dead: false, vx: Math.cos(ang2) * 4, vy: Math.sin(ang2) * 4, sh: 'plasma', fcol: '#c88ae0', smsg: 'Плазма мегазорда испарила тебя!' });
+              }
+              SFX.bossSpit();
+            } else {
+              const mx0 = player.x + 15;
+              for (const off of [-170, 0, 170]) {
+                const hx = Math.max(60, Math.min(lvl.width - 60, mx0 + off));
+                bossHazes.push({ x: hx, ground: 440, t: 46, phase: 'warn', type: 'fall', shape: 'meteor', col: '#ff8c3d', col2: '#ffd76e', msg: 'Метеор мегазорда снёс тебя!' });
+              }
+              SFX.bossCharge();
+            }
+            mega.atk = 230;
+          }
+        } else {
+          mega.atk--;
+          if (mega.atk <= 0) { mega.wind = 55; mega.mv = Math.random() < 0.5 ? 'plasma' : 'meteor'; SFX.bossCharge(); }
+        }
+      }
+      if (mega.dead === false && mega.parts.every(pt => pt.dead)) {
+        mega.dead = true;
+        shake = 10;
+        SFX.bossDie();
+        bank += 500; saveProg(); updateHud();
+        flash('МЕГА-ДРЫН ПОВЕРЖЕН! ФЛАГ ОТКРЫТ!', 160);
+        for (const pt of mega.parts) spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 10, 7, 4);
+      }
     }
 
     for (const fb of fireballs) {
@@ -1423,13 +1580,18 @@
     }
 
     const fbox = { x: flag.x, y: flag.y, w: 40, h: 60 };
-    if (rectsHit(body, fbox, 4)) {
+    if (lvl.final && mega && !mega.dead && rectsHit(body, fbox, 4)) {
+      flash('Флаг заперт — сначала МЕГА-ДРЫН!', 60);
+    } else if (rectsHit(body, fbox, 4)) {
       if (levelIdx + 1 < LEVELS.length) {
         levelIdx++;
         if (levelIdx + 1 > unlocked) { unlocked = levelIdx + 1; saveProg(); }
         const nxt = levelIdx;
         const goN = () => { loadLevel(nxt); state = 'play'; flash('Гл ' + (Math.floor(nxt / 10) + 1) + ' арена ' + (nxt % 10 + 1), 80); };
-        if (nxt % 10 === 0) {
+        if (LEVELS[nxt].final) {
+          state = 'menu';
+          playCut('final', goN);
+        } else if (nxt % 10 === 0) {
           state = 'menu';
           playCut(LEVELS[nxt].theme, goN);
         } else goN();
@@ -2070,8 +2232,14 @@
     ctx.lineTo(flag.x + 8, flag.y + 28);
     ctx.closePath();
     ctx.fill();
+    if (lvl.final && mega && !mega.dead) {
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(flag.x + 18, flag.y - 26, 5, Math.PI, 0); ctx.stroke();
+      ctx.fillStyle = '#ffc93c';
+      roundRect(flag.x + 11, flag.y - 26, 14, 12, 3); ctx.fill(); ctx.stroke();
+    }
 
-    if (boss && !boss.dead && boss.wind > 0 && BOSS_SKINS[lvl.theme].atks[boss.next || 0].t === 'shot') {
+    if (boss && !boss.dead && boss.wind > 0 && BOSS_SKINS[lvl.theme].atks[boss.next || 0].t === 'volley') {
       const mlx = boss.x + 25, mly = boss.y + 18;
       const tdx = (player.x + player.w / 2) - (mlx + 7), tdy = (player.y + 17) - (mly + 7);
       const dist = Math.hypot(tdx, tdy) || 1;
@@ -2115,6 +2283,29 @@
       ctx.fillStyle = '#ff4040';
       roundRect(bx, by - 16, 66 * Math.max(0, boss.hp) / boss.maxHp, 6, 3);
       ctx.fill();
+    }
+
+    if (mega && !mega.dead) {
+      for (const pt of mega.parts) {
+        if (pt.dead) continue;
+        const bobM = Math.sin(time * 2 + pt.ox * 0.1) * 2;
+        const flashM = pt.flash > 0 && Math.floor(pt.flash / 3) % 2 === 0;
+        drawBossBody(BOSS_SKINS[pt.theme], mega.x + pt.ox, 440 + pt.oy + bobM, player.x < mega.x + 96, flashM, time + pt.ox);
+      }
+      if (mega.phase === 'fight') {
+        ctx.strokeStyle = 'rgba(255,60,60,' + (0.18 + 0.08 * Math.sin(time * 4)).toFixed(2) + ')';
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(mega.x + 96, 320, 150 + Math.sin(time * 4) * 12, 0, Math.PI * 2); ctx.stroke();
+      }
+      const maxT = mega.parts.reduce((aa, p2) => aa + p2.hp0, 0);
+      const aliveT = mega.parts.reduce((aa, p2) => aa + Math.max(0, p2.hp), 0);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      roundRect(mega.x + 4, 200, 184, 26, 8); ctx.fill();
+      ctx.fillStyle = '#ff4040';
+      roundRect(mega.x + 8, 204, 176 * Math.max(0, aliveT) / maxT, 10, 5); ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 11px Segoe UI, system-ui, sans-serif';
+      ctx.fillText('МЕГА-ДРЫН', mega.x + 10, 222);
     }
 
     for (const fb of fireballs) {
@@ -2170,6 +2361,109 @@
     for (const bossHaz of bossHazes) {
       const c1 = bossHaz.col, c2 = bossHaz.col2;
       const gx = bossHaz.x;
+      if (bossHaz.kind === 'pool') {
+        if (bossHaz.phase === 'warn') {
+          if (Math.floor(time * 8) % 2 === 0) {
+            ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.lineWidth = 3; ctx.setLineDash([7, 7]);
+            ctx.beginPath(); ctx.ellipse(gx, bossHaz.ground + 4, 55, 10, 0, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else {
+          ctx.globalAlpha = Math.min(1, bossHaz.t / 50);
+          ctx.fillStyle = c1;
+          ctx.beginPath(); ctx.ellipse(gx, bossHaz.ground + 4, 55, 11, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = c2;
+          ctx.beginPath(); ctx.ellipse(gx, bossHaz.ground + 4, 40, 8, 0, 0, Math.PI * 2); ctx.fill();
+          for (let i = 0; i < 4; i++) {
+            const ph = (time * 1.6 + i * 0.25) % 1;
+            ctx.beginPath(); ctx.arc(gx - 30 + i * 20, bossHaz.ground + 4 - ph * 9, 2.5, 0, Math.PI * 2); ctx.fill();
+          }
+          ctx.globalAlpha = 1;
+        }
+        continue;
+      }
+      if (bossHaz.kind === 'sweep') {
+        if (bossHaz.phase === 'warn') {
+          if (Math.floor(time * 8) % 2 === 0) {
+            ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.lineWidth = 3; ctx.setLineDash([7, 7]);
+            ctx.beginPath(); ctx.moveTo(gx, bossHaz.ground - 110); ctx.lineTo(gx, bossHaz.ground); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.beginPath(); ctx.arc(gx, bossHaz.ground - 60, 20, 0, Math.PI * 2); ctx.stroke();
+          }
+        } else {
+          const yb = bossHaz.ground - 110;
+          if (bossHaz.shape === 'tornado') {
+            ctx.fillStyle = c1; ctx.strokeStyle = c2; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(gx, yb); ctx.lineTo(gx + 18, bossHaz.ground); ctx.lineTo(gx - 18, bossHaz.ground); ctx.closePath(); ctx.fill(); ctx.stroke();
+            for (let i = 0; i < 3; i++) {
+              const sy = yb + 14 + i * 26, sw = 9 + i * 9;
+              ctx.beginPath(); ctx.moveTo(gx - sw, sy); ctx.quadraticCurveTo(gx + bossHaz.dir * 14 + sw, sy - 8, gx + sw * 0.25, sy + 8); ctx.stroke();
+            }
+          } else if (bossHaz.shape === 'wave') {
+            ctx.fillStyle = c1;
+            ctx.beginPath(); ctx.moveTo(gx - 22, bossHaz.ground);
+            ctx.quadraticCurveTo(gx - 10, bossHaz.ground - 60, gx + 4, yb + 14);
+            ctx.quadraticCurveTo(gx + 20, bossHaz.ground - 60, gx + 22, bossHaz.ground);
+            ctx.closePath(); ctx.fill();
+            ctx.fillStyle = c2;
+            ctx.beginPath(); ctx.arc(gx + 4, yb + 12, 5, 0, Math.PI * 2); ctx.fill();
+          } else if (bossHaz.shape === 'shadow') {
+            ctx.fillStyle = 'rgba(16,20,36,.85)';
+            ctx.beginPath(); ctx.moveTo(gx - 20, bossHaz.ground);
+            ctx.quadraticCurveTo(gx - 8, yb + 30, gx, yb);
+            ctx.quadraticCurveTo(gx + 8, yb + 30, gx + 20, bossHaz.ground);
+            ctx.closePath(); ctx.fill();
+            ctx.strokeStyle = c2; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(gx - 14, bossHaz.ground - 45); ctx.quadraticCurveTo(gx, bossHaz.ground - 60, gx + 14, bossHaz.ground - 45); ctx.stroke();
+          } else {
+            ctx.fillStyle = c1;
+            ctx.fillRect(gx - 10, yb, 20, 112);
+            ctx.fillStyle = c2;
+            ctx.fillRect(gx - 3, yb, 6, 112);
+            ctx.globalAlpha = .4;
+            for (let i = 0; i < 3; i++) {
+              ctx.strokeStyle = c2; ctx.lineWidth = 2;
+              const yy = (time * 260 + i * 40) % 112;
+              ctx.beginPath(); ctx.moveTo(gx - 10, yb + 4 + yy); ctx.lineTo(gx + 10, yb + yy); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+          }
+        }
+        continue;
+      }
+      if (bossHaz.kind === 'roll') {
+        if (bossHaz.phase === 'warn') {
+          if (Math.floor(time * 8) % 2 === 0) {
+            ctx.strokeStyle = 'rgba(255,60,60,.85)'; ctx.lineWidth = 3; ctx.setLineDash([7, 7]);
+            ctx.beginPath(); ctx.arc(gx, bossHaz.ground - 24, 22, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+          }
+        } else {
+          ctx.save();
+          ctx.translate(gx, bossHaz.ground - 24);
+          ctx.rotate(gx * 0.25 * bossHaz.dir);
+          ctx.fillStyle = c1;
+          if (bossHaz.shape === 'log') {
+            roundRect(-26, -20, 52, 40, 10); ctx.fill();
+            ctx.strokeStyle = c2; ctx.lineWidth = 2.5;
+            ctx.beginPath(); ctx.moveTo(-26, -6); ctx.lineTo(26, -6); ctx.moveTo(-26, 8); ctx.lineTo(26, 8); ctx.stroke();
+            ctx.fillStyle = c2;
+            ctx.beginPath(); ctx.arc(-26, 0, 12, 0, Math.PI * 2); ctx.arc(26, 0, 12, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = c2; ctx.lineWidth = 1.5;
+            ctx.beginPath(); ctx.arc(-26, 0, 6, 0, Math.PI * 2); ctx.arc(26, 0, 6, 0, Math.PI * 2); ctx.stroke();
+          } else {
+            ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = c2; ctx.lineWidth = 2.5;
+            for (let k = 0; k < 3; k++) {
+              const aa = k * 2.1;
+              ctx.beginPath(); ctx.arc(Math.cos(aa) * 12, Math.sin(aa) * 12, 5, 0, Math.PI * 2); ctx.stroke();
+            }
+            ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI * 2); ctx.stroke();
+          }
+          ctx.restore();
+        }
+        continue;
+      }
       if (bossHaz.phase === 'warn') {
         if (Math.floor(time * 8) % 2 === 0) {
           ctx.strokeStyle = 'rgba(255,60,60,.85)';
@@ -2636,29 +2930,58 @@
       ctx.beginPath(); ctx.arc(bx + 24 + pd, by + 26, 2, 0, Math.PI * 2); ctx.arc(bx + 40 + pd, by + 26, 2, 0, Math.PI * 2); ctx.fill();
       ctx.strokeStyle = '#2a1a10'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(bx + 26, by + 40); ctx.quadraticCurveTo(bx + 32, by + 44, bx + 38, by + 40); ctx.stroke();
-    } else if (skin.kind === 'sultan') {
-      ctx.fillStyle = F || skin.body;
-      roundRect(bx + 8, by + 10, 48, 46, 10); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = F || '#ffd76e';
-      ctx.fillRect(bx + 8, by + 38, 48, 6);
-      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 2;
+    } else if (skin.kind === 'mummy') {
+      ctx.fillStyle = 'rgba(0,0,0,.18)';
+      ctx.beginPath(); ctx.ellipse(bx + 32, by + 62, 26, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = F ? '#e8e8e8' : skin.body; ctx.lineWidth = 4;
+      const w1 = Math.sin(tt * 2.4) * 6, w2 = Math.sin(tt * 2.4 + 1.4) * 6;
       ctx.beginPath();
-      ctx.moveTo(bx + 16, by + 22); ctx.lineTo(bx + 16, by + 52);
-      ctx.moveTo(bx + 48, by + 22); ctx.lineTo(bx + 48, by + 52);
+      ctx.moveTo(bx + 16, by + 30); ctx.quadraticCurveTo(bx - 6, by + 38 + w1, bx - 14, by + 52 + w1);
+      ctx.moveTo(bx + 48, by + 26); ctx.quadraticCurveTo(bx + 68, by + 34 + w2, bx + 76, by + 46 + w2);
       ctx.stroke();
       ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3;
-      ctx.fillStyle = F || '#e6c078';
-      ctx.beginPath(); ctx.arc(bx + 32, by + 6, 12, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = F || '#f5f1e6';
-      ctx.beginPath(); ctx.ellipse(bx + 32, by - 4, 16, 9, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#c04a2a';
+      ctx.fillStyle = F || skin.dark;
+      roundRect(bx + 12, by + 8, 40, 50, 12); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = F || skin.body;
+      roundRect(bx + 16, by + 6, 32, 52, 11); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = F ? '#e8e8e8' : skin.dark;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(bx + 32, by - 9); ctx.lineTo(bx + 35, by - 4); ctx.lineTo(bx + 32, by + 1); ctx.lineTo(bx + 29, by - 4);
+      ctx.moveTo(bx + 18, by + 14); ctx.lineTo(bx + 46, by + 26);
+      ctx.moveTo(bx + 16, by + 30); ctx.lineTo(bx + 48, by + 42);
+      ctx.moveTo(bx + 18, by + 46); ctx.lineTo(bx + 46, by + 52);
+      ctx.moveTo(bx + 30, by + 6); ctx.lineTo(bx + 34, by + 20);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(bx + 16, by + 20); ctx.lineTo(bx + 48, by + 16);
+      ctx.moveTo(bx + 16, by + 35); ctx.lineTo(bx + 48, by + 31);
+      ctx.moveTo(bx + 16, by + 49); ctx.lineTo(bx + 48, by + 45);
+      ctx.stroke();
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3;
+      ctx.fillStyle = F || skin.body;
+      ctx.beginPath(); ctx.arc(bx + 32, by, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = F ? '#e8e8e8' : skin.dark; ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(bx + 18, by - 8); ctx.lineTo(bx + 46, by - 2);
+      ctx.moveTo(bx + 17, by + 7); ctx.lineTo(bx + 47, by + 11);
+      ctx.stroke();
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 3;
+      ctx.fillStyle = '#141414';
+      ctx.beginPath(); ctx.arc(bx + 25, by - 3, 5.5, 0, Math.PI * 2); ctx.arc(bx + 40, by - 3, 5.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ffb32a';
+      ctx.beginPath(); ctx.arc(bx + 25 + pd, by - 3, 2.2, 0, Math.PI * 2); ctx.arc(bx + 40 + pd, by - 3, 2.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#ff5b2a';
+      ctx.beginPath(); ctx.arc(bx + 25 + pd, by - 3, 1, 0, Math.PI * 2); ctx.arc(bx + 40 + pd, by - 3, 1, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#141414';
+      ctx.beginPath();
+      ctx.moveTo(bx + 22, by + 6);
+      for (let k = 0; k < 5; k++) {
+        const tz = bx + 22 + k * 5;
+        ctx.lineTo(tz + 2.5, by + 6 + (k % 2 ? 3 : 6));
+        ctx.lineTo(tz + 5, by + 6);
+      }
       ctx.closePath(); ctx.fill();
-      ctx.fillStyle = '#1a1a1a';
-      ctx.beginPath(); ctx.arc(bx + 27 + pd, by + 6, 2, 0, Math.PI * 2); ctx.arc(bx + 37 + pd, by + 6, 2, 0, Math.PI * 2); ctx.fill();
-      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.moveTo(bx + 26, by + 13); ctx.quadraticCurveTo(bx + 32, by + 16, bx + 38, by + 13); ctx.stroke();
     } else if (skin.kind === 'yeti') {
       ctx.fillStyle = F || '#eef6ff';
       roundRect(bx + 6, by + 8, 52, 48, 16); ctx.fill(); ctx.stroke();
@@ -2828,7 +3151,8 @@
   }
   function drawCutFrame() {
     const isIntro = cutKey === 'intro';
-    const th = isIntro ? THEMES.meadow : THEMES[cutKey];
+    const isFinal = cutKey === 'final';
+    const th = THEMES[isIntro ? 'meadow' : (isFinal ? 'space' : cutKey)];
     const step = cutPos;
     const t = (performance.now() - cutStepAt) / 1000;
     let top = th.skyTop, bot = th.skyBottom;
@@ -2837,7 +3161,7 @@
     g.addColorStop(0, top); g.addColorStop(1, bot);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-    cutProp(isIntro ? 'meadow' : cutKey, t);
+    cutProp(isIntro ? 'meadow' : (isFinal ? 'space' : cutKey), t);
     ctx.fillStyle = th.groundTop;
     ctx.fillRect(0, 400, W, 80);
     ctx.fillStyle = th.groundBody;
@@ -2899,6 +3223,42 @@
         ctx.restore();
         ctx.globalAlpha = 1;
         for (let i = 0; i < 3; i++) cutCoin(470 + i * 46, 350 + Math.sin(t * 2 + i) * 7);
+      }
+    } else if (isFinal) {
+      if (step === 0) {
+        const hx = Math.min(-30 + t * 170, 110);
+        cutHeroDraw(hx, 440, 1, t, true);
+        cutDust(hx - 18, 438, t);
+        cutCatDraw(hx - 64, 452, t);
+        for (const pt of MEGA_PARTS) drawBossBody(BOSS_SKINS[pt.theme], 330 + pt.ox, 452 + pt.oy, false, false, t);
+        cutBubble(hx + 46, 320, 'ОН СОБИРАЕТСЯ! БЕГИ!', 0.9);
+      } else if (step === 1) {
+        cutHeroDraw(120, 440, 1, t);
+        cutCatDraw(184, 452, t);
+        for (let pi = 0; pi < MEGA_PARTS.length; pi++) {
+          const pt = MEGA_PARTS[pi];
+          const ap = Math.min(1, Math.max(0, (t - pi * 0.13) / 0.5));
+          if (ap <= 0) continue;
+          ctx.globalAlpha = ap;
+          drawBossBody(BOSS_SKINS[pt.theme], 520 + pt.ox, 452 + pt.oy - (1 - ap) * 140, false, false, t + pi);
+          ctx.globalAlpha = 1;
+        }
+      } else {
+        const shk = 1.5 + Math.sin(t * 10) * 1.5;
+        ctx.save();
+        ctx.translate((Math.random() - 0.5) * shk, (Math.random() - 0.5) * shk);
+        ctx.strokeStyle = 'rgba(255,60,60,' + (0.25 + 0.1 * Math.sin(t * 4)) + ')';
+        ctx.lineWidth = 6;
+        ctx.beginPath(); ctx.arc(520 + 64, 320, 150 + Math.sin(t * 4) * 14, 0, Math.PI * 2); ctx.stroke();
+        for (const pt of MEGA_PARTS) drawBossBody(BOSS_SKINS[pt.theme], 520 + pt.ox, 452 + pt.oy, false, false, t);
+        ctx.restore();
+        ctx.fillStyle = '#ff5b5b';
+        ctx.font = '800 20px Segoe UI, system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('МЕГА-ДРЫН', 584, 200);
+        ctx.textAlign = 'left';
+        cutBubble(584, 250, 'ГРРР-ХА-ХА!', 0.5 + 0.5 * Math.sin(t * 5));
+        cutHeroDraw(120, 440, 1, t);
       }
     } else {
       const skin = BOSS_SKINS[cutKey];
@@ -2982,7 +3342,7 @@
 
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
-    levelEl.textContent = 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1);
+    levelEl.textContent = lvl && lvl.final ? '🔥 ФИНАЛ · МЕГА-ДРЫН' : 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1);
     ammoEl.textContent = '🔫 ' + ammo;
     totemEl.style.display = totem ? 'inline-block' : 'none';
     totemEl.textContent = '🐾 Тотем' + (totemCharges > 1 ? ' ×' + totemCharges : '');
@@ -3002,7 +3362,8 @@
   function startLevel(i) {
     const theme = LEVELS[i].theme;
     const chain = ['intro'];
-    if (i % 10 === 0) chain.push(theme);
+    if (LEVELS[i].final) chain.push('final');
+    else if (i % 10 === 0) chain.push(theme);
     menuEl.classList.add('hidden');
     if (chain.length === 1) { launchLevel(i); return; }
     const run = () => {
@@ -3149,6 +3510,17 @@
     const g = document.getElementById('lvlGrid');
     g.innerHTML = '';
     LEVELS.forEach((l, i) => {
+      if (l.final) {
+        const capF = document.createElement('div');
+        capF.className = 'chcap' + (i + 1 > unlocked ? ' lockedch' : '');
+        capF.innerHTML = '<b>🔥 ФИНАЛ</b><span>МЕГА-ДРЫН: погоня + боссфайт</span>';
+        g.appendChild(capF);
+        const bF = document.createElement('button');
+        if (i + 1 > unlocked) { bF.classList.add('locked'); bF.textContent = '🔒 🔥'; }
+        else { bF.textContent = '🔥'; bF.onclick = () => { ac(); startLevel(i); }; }
+        g.appendChild(bF);
+        return;
+      }
       const si = i % 10;
       if (si === 0) {
         const cap = document.createElement('div');
@@ -3287,6 +3659,10 @@
     b.onclick = () => admGo(ci * 10 + 9);
     document.getElementById('admBoss').appendChild(b);
   });
+  const admBtnF = document.createElement('button');
+  admBtnF.textContent = '🔥';
+  admBtnF.onclick = () => admGo(LEVELS.length - 1);
+  document.getElementById('admBoss').appendChild(admBtnF);
   document.getElementById('admNext').onclick = () => admGo(Math.min(LEVELS.length - 1, levelIdx + 1));
   document.getElementById('admRetry').onclick = () => { if (state !== 'menu') { respawnAtCp(); state = 'play'; } };
   document.getElementById('admGod').onclick = e => { god = !god; e.target.classList.toggle('on', god); };
@@ -3294,6 +3670,14 @@
   document.getElementById('admPlus').onclick = () => { ammo += 10; updateHud(); flash('+10 патронов', 40); };
   document.getElementById('admTotem').onclick = () => { totem = !totem; updateHud(); flash(totem ? 'Тотем выдан' : 'Тотем снят', 40); };
   document.getElementById('admKillBoss').onclick = () => {
+    if (mega && !mega.dead) {
+      for (const pt of mega.parts) { pt.dead = true; pt.hp = 0; }
+      mega.dead = true;
+      bank += 500; saveProg(); updateHud();
+      SFX.bossDie();
+      flash('Мега-Дрын повержен!', 100);
+      return;
+    }
     if (boss && !boss.dead) {
       boss.dead = true;
       bank += 250; saveProg(); updateHud();
