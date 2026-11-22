@@ -1214,7 +1214,7 @@
     for (const b of bullets) {
       if (b.dead) continue;
       if (b.delay > 0) { b.delay--; continue; }
-      if (b.grav !== undefined) { if (b.grav > 0) b.grav--; else { b.vy = Math.min(6.5, b.vy + 0.14); b.ang = Math.atan2(b.vy, b.vx); } }
+      if (b.wkind === 'launcher') { if (b.grav > 0) b.grav--; else { b.vy = Math.min(6.5, b.vy + 0.14); b.ang = Math.atan2(b.vy, b.vx); } }
       b.x += b.vx;
       b.y += b.vy;
       if (b.x < -20 || b.x > lvl.width + 20 || b.y < -40 || b.y > H + 60) { b.dead = true; continue; }
