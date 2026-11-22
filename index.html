@@ -249,7 +249,7 @@
       <div class="crow"><span>Движение</span><b>← → или A / D</b></div>
       <div class="crow"><span>Прыжок</span><b>↑ / W / Пробел</b></div>
       <div class="crow"><span>Стрелять</span><b>X / F / клик мыши</b></div>
-      <div class="crow"><span>Сменить оружие</span><b>1 дробовик · 2 узи · 3 граната · 4 катана</b></div>
+      <div class="crow"><span>Сменить оружие</span><b>1 дробовик · 2 пистолет · 3 калаш · 4 узи ×2 · 5 авик · 6 гранатомёт · 7 катана · 8 миниган</b></div>
       <div class="crow"><span>Прицел</span><b>мышь</b></div>
       <div class="crow"><span>Погладить кошку</span><b>E</b></div>
       <div class="crow"><span>Звук</span><b>M</b></div>
@@ -980,16 +980,27 @@
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
   let curW = 'shotgun', fireCd = 0, slashFx = null;
-  let wowned = {}, wauzi = 0, walaun = 0;
+  let wowned = {}, wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 };
+  let mgHeat = 0, mgHot = false, mgHand = 0;
   try { wowned = JSON.parse(localStorage.getItem('pf_wowned') || '{}') || {}; } catch (e) { wowned = {}; }
-  try { wauzi = parseInt(localStorage.getItem('pf_wauzi') || '0', 10) || 0; } catch (e) { wauzi = 0; }
-  try { walaun = parseInt(localStorage.getItem('pf_walaun') || '0', 10) || 0; } catch (e) { walaun = 0; }
+  try { const ws = JSON.parse(localStorage.getItem('pf_wammo') || 'null'); if (ws && typeof ws === 'object') { for (const k in wammo) if (typeof ws[k] === 'number' && ws[k] > 0) wammo[k] = Math.floor(ws[k]); } } catch (e) {}
+  try { const oz = parseInt(localStorage.getItem('pf_wauzi') || '0', 10) || 0; if (oz > 0 && wammo.uzi === 0) wammo.uzi = oz; } catch (e) {}
+  try { const ol = parseInt(localStorage.getItem('pf_walaun') || '0', 10) || 0; if (ol > 0 && wammo.launcher === 0) wammo.launcher = ol; } catch (e) {}
   const WEAPONS = [
-    { id: 'shotgun', emoji: '🔫', name: 'Дробовик' },
-    { id: 'uzi', emoji: '🔥', name: 'Узи' },
-    { id: 'launcher', emoji: '💣', name: 'Гранатомёт' },
-    { id: 'katana', emoji: '⚔️', name: 'Катана' },
+    { id: 'shotgun', emoji: '🔫', name: 'Дробовик', ammoKey: null, cd: 0, spd: 10 },
+    { id: 'pistol', emoji: '🎯', name: 'Пистолет', ammoKey: 'pistol', cd: 16, spd: 11 },
+    { id: 'kalash', emoji: '🧨', name: 'Калаш', ammoKey: 'kalash', cd: 9, spd: 12 },
+    { id: 'uzi', emoji: '🎇', name: 'Узи ×2', ammoKey: 'uzi', cd: 5, spd: 13 },
+    { id: 'avik', emoji: '🔭', name: 'Авик', ammoKey: 'avik', cd: 7, spd: 15 },
+    { id: 'launcher', emoji: '💣', name: 'Гранатомёт', ammoKey: 'launcher', cd: 32, spd: 6.5 },
+    { id: 'katana', emoji: '⚔️', name: 'Катана', ammoKey: null, cd: 24, spd: 10 },
+    { id: 'minigun', emoji: '🔥', name: 'Миниган', ammoKey: 'minigun', cd: 2, spd: 14 },
   ];
+  function wpool(id) {
+    if (id === 'shotgun') return ammo;
+    const w = WEAPONS.find(w2 => w2.id === id);
+    return w.ammoKey ? wammo[w.ammoKey] : Infinity;
+  }
   function selectWeapon(w) {
     if (w !== 'shotgun' && !wowned[w]) { flash('Это оружие ещё не куплено — загляни в магазин!', 70); return; }
     curW = w;
@@ -1016,8 +1027,7 @@
       localStorage.setItem('pf_owned', JSON.stringify(owned));
       localStorage.setItem('pf_equipped', JSON.stringify(equipped));
       localStorage.setItem('pf_wowned', JSON.stringify(wowned));
-      localStorage.setItem('pf_wauzi', wauzi);
-      localStorage.setItem('pf_walaun', walaun);
+      localStorage.setItem('pf_wammo', JSON.stringify(wammo));
     } catch (e) {}
   }
 
@@ -1141,18 +1151,23 @@
   function fire() {
     if (state !== 'play') return;
     if (curW === 'katana') { if (fireCd <= 0) { katanaSlash(); fireCd = 24; } return; }
+    if (curW === 'minigun' && mgHot) { if (fireCd <= 0) { flash('Раскалился! Жди ♨️', 30); fireCd = 12; SFX.wall(); } return; }
     if (curW !== 'shotgun' && fireCd > 0) return;
-    const isUzi = curW === 'uzi', isLaun = curW === 'launcher';
-    const pool = isUzi ? wauzi : (isLaun ? walaun : ammo);
+    const W2 = WEAPONS.find(w2 => w2.id === curW);
+    const isUzi = curW === 'uzi', isLaun = curW === 'launcher', isMini = curW === 'minigun', isKal = curW === 'kalash', isAvik = curW === 'avik', isPist = curW === 'pistol';
+    const pool = wpool(curW);
     if (pool <= 0 && !infAmmo) { flash('Нет патронов! Купи в магазине 🛒', 70); SFX.wall(); fireCd = 30; return; }
     if (!infAmmo) {
-      if (isUzi) { wauzi--; if (wauzi % 5 === 0) saveProg(); }
-      else if (isLaun) { walaun--; saveProg(); }
-      else ammo--;
-      fireCd = isUzi ? 6 : (isLaun ? 32 : 0);
+      if (curW === 'shotgun') ammo--;
+      else { wammo[W2.ammoKey]--; if (wammo[W2.ammoKey] % 4 === 0) saveProg(); }
+      fireCd = curW === 'shotgun' ? 0 : (W2.cd || 6);
+    }
+    if (isMini) {
+      mgHeat = Math.min(100, mgHeat + 1.67);
+      if (mgHeat >= 100 && !mgHot) { mgHot = true; flash('Миниган раскалился! Жди ♨️', 60); }
     }
     muzzleT = 6;
-    if (isUzi) SFX.uzi();
+    if (isUzi || isMini || isKal || isAvik) SFX.uzi();
     else if (isLaun) SFX.thump();
     else SFX.shoot();
     updateHud();
@@ -1164,19 +1179,28 @@
       pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(mdy, mdx)));
     }
     const pvx = Math.cos(pitch) * f, pvy = Math.sin(pitch);
-    const spd = isUzi ? 13 : (isLaun ? 6.5 : BULLET_SPEED);
-    const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35;
+    const spd = W2.spd || BULLET_SPEED;
+    const spread = isMini ? (Math.random() - 0.5) * 0.07 : ((isKal || isAvik) ? (Math.random() - 0.5) * 0.03 : 0);
+    const pch2 = Math.max(-1.52, Math.min(1.52, pitch + spread));
+    const pvx2 = Math.cos(pch2) * f, pvy2 = Math.sin(pch2);
+    const bw = isLaun ? 18 : (isAvik ? 16 : (isMini ? 7 : (isKal ? 11 : (isUzi ? 8 : (isPist ? 10 : 12)))));
+    const bh = isLaun ? 12 : (isMini ? 3 : (isUzi || isPist || isKal || isAvik ? 4 : 6));
+    let hOff = 0;
+    if (isUzi) { mgHand = 1 - mgHand; hOff = mgHand ? 4 : -4; }
+    const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35 + hOff;
     bullets.push({
-      x: mx2 - (isLaun ? 9 : 6), y: my2 - (isLaun ? 6 : 3),
-      w: isLaun ? 18 : (isUzi ? 8 : 12), h: isLaun ? 12 : (isUzi ? 4 : 6),
+      x: mx2 - (isLaun ? 9 : 6), y: my2 - (isLaun ? 6 : bh / 2),
+      w: bw, h: bh,
       dead: false,
-      vx: pvx * spd, vy: pvy * spd,
-      ang: Math.atan2(pvy, pvx),
+      vx: pvx2 * spd, vy: pvy2 * spd,
+      ang: Math.atan2(pvy2, pvx2),
       wkind: isLaun ? 'launcher' : null,
-      bcol: isLaun ? '#4a5a2f' : (isUzi ? '#ffd76e' : null),
+      bcol: isLaun ? '#4a5a2f' : (isUzi ? '#ffd76e' : (isKal ? '#ffb347' : (isAvik ? '#9be7ff' : (isMini ? '#ff7b4a' : (isPist ? '#e8e8e8' : null))))),
+      pierce: isAvik ? 2 : 0,
     });
-    spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, isLaun ? '#ff8c3d' : '#ffc93c', isLaun ? 10 : 6, 4, 1);
+    spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, isLaun ? '#ff8c3d' : '#ffc93c', isMini ? 3 : (isLaun ? 10 : 6), 4, 1);
     if (isLaun) { player.vx -= pvx * 2.4; }
+    if (isMini) { player.vx -= pvx * 0.5; }
   }
 
   function updateBullets() {
@@ -1187,7 +1211,14 @@
       if (b.x < -20 || b.x > lvl.width + 20 || b.y < -40 || b.y > H + 60) { b.dead = true; continue; }
       for (const e of enemies) {
         if (!e.dead && rectsHit(b, e)) {
-          e.dead = true; b.dead = true;
+          e.dead = true;
+          if (b.pierce > 0) {
+            b.pierce--;
+            SFX.squish();
+            spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 12, 5, 3, true);
+            continue;
+          }
+          b.dead = true;
           shake = Math.max(shake, 3);
           SFX.squish();
           spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
@@ -1358,6 +1389,8 @@
     shake = Math.max(0, shake - 0.5);
     muzzleT = Math.max(0, muzzleT - 1);
     if (fireCd > 0) fireCd--;
+    if (curW === 'minigun') { mgHeat = Math.max(0, mgHeat - (mgHot ? 0.9 : 0.55)); if (mgHot && mgHeat <= 30) mgHot = false; }
+    else if (mgHeat > 0) { mgHeat = Math.max(0, mgHeat - 1.2); if (mgHeat <= 0) mgHot = false; }
     if (slashFx) { slashFx.t--; if (slashFx.t <= 0) slashFx = null; }
     appearT = Math.max(0, appearT - 1);
     saveT = Math.max(0, saveT - 1);
@@ -2151,6 +2184,9 @@
     ctx.lineJoin = 'round';
     ctx.strokeStyle = outline;
     if (curW === 'uzi') {
+      for (const duo of [{ dx: 1, dy: -5 }, { dx: -2, dy: 6 }]) {
+        ctx.save();
+        ctx.translate(duo.dx, duo.dy);
       ctx.fillStyle = '#3a3f47';
       roundRect(-3, -4, 16, 10, 2);
       ctx.fill(); ctx.stroke();
@@ -2172,6 +2208,135 @@
       ctx.fillStyle = 'rgba(0,0,0,.4)';
       roundRect(6, -1, 4, 3, 1);
       ctx.fill();
+        ctx.restore();
+      }
+    } else if (curW === 'pistol') {
+      ctx.fillStyle = '#444a52';
+      roundRect(-1, -3.5, 13, 6, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#2b2f34';
+      roundRect(12, -2.5, 7, 4, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#141414';
+      roundRect(19, -2.5, 3, 4.5, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#3b3f45';
+      roundRect(0, 2.5, 5.5, 9, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#9be7ff';
+      roundRect(6, -2, 3, 1.5, 0.75);
+      ctx.fill();
+    } else if (curW === 'kalash') {
+      ctx.fillStyle = '#8B5A2B';
+      ctx.beginPath();
+      ctx.moveTo(-3, -2);
+      ctx.quadraticCurveTo(-14, 0, -13, 7);
+      ctx.lineTo(-4, 5.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#3d3f33';
+      roundRect(-4, -4.5, 22, 9, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#26281f';
+      roundRect(18, -2.5, 16, 4, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#141414';
+      roundRect(34, -2.5, 3.5, 5, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#8B5A2B';
+      roundRect(8, 1.5, 12, 5, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#555a4a';
+      ctx.beginPath();
+      ctx.moveTo(2, 4.5);
+      ctx.quadraticCurveTo(5, 14, 13, 13.5);
+      ctx.lineTo(10.5, 6.5);
+      ctx.lineTo(2, 4.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(-8, 4, 5.5, 9, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffd76e';
+      roundRect(-1, -6, 6, 1.6, 0.8);
+      ctx.fill();
+    } else if (curW === 'avik') {
+      ctx.fillStyle = '#39424f';
+      ctx.beginPath();
+      ctx.moveTo(-4, -3);
+      ctx.quadraticCurveTo(-15, -1, -14, 7);
+      ctx.lineTo(-4, 5.5);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      roundRect(-5, -4, 26, 8, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#22262e';
+      roundRect(21, -2.5, 22, 4, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#141414';
+      roundRect(43, -3, 5, 6, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#1f232b';
+      roundRect(2, -9.5, 13, 5, 2.5);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#9be7ff';
+      roundRect(13.5, -8.2, 1.8, 2.6, 0.9);
+      ctx.fill();
+      ctx.fillStyle = '#2b3038';
+      roundRect(8, 4, 6.5, 9, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(-3, 4, 5.5, 8.5, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#9be7ff';
+      roundRect(-1, -5.5, 5, 1.6, 0.8);
+      ctx.fill();
+    } else if (curW === 'minigun') {
+      const hh = mgHeat / 100;
+      const hcol = 'rgb(' + Math.round(44 + 211 * hh) + ',' + Math.round(44 + 46 * hh) + ',' + Math.round(43 + 0 * hh) + ')';
+      if (hh > 0.25) {
+        ctx.fillStyle = 'rgba(255,110,50,' + (0.20 + 0.18 * hh).toFixed(2) + ')';
+        ctx.beginPath();
+        ctx.ellipse(34, -1, 15, 8, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#3a3f47';
+      roundRect(-12, -8, 17, 18, 4);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(4, -7.5, 7, 17, 3);
+      ctx.fill(); ctx.stroke();
+      for (const by2 of [-6.2, -1.9, 2.4]) {
+        ctx.fillStyle = hcol;
+        roundRect(9, by2, 32, 3.6, 1.8);
+        ctx.fill();
+        if (hh > 0.25) {
+          ctx.strokeStyle = 'rgba(255,120,60,' + (0.5 * hh).toFixed(2) + ')';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.strokeStyle = outline;
+          ctx.lineWidth = 2;
+        }
+      }
+      ctx.fillStyle = '#1a1a1a';
+      roundRect(40, -6.8, 4, 16.6, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(-8, 10, 6, 9, 2);
+      ctx.fill(); ctx.stroke();
+      roundRect(0, 10, 6, 9, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#5c4a2f';
+      roundRect(-11, 8, 7, 12, 2);
+      ctx.fill(); ctx.stroke();
+      if (mgHot) {
+        ctx.fillStyle = 'rgba(255,255,255,.30)';
+        for (const sf of [[6, -13, 3], [14, -17, 4.2], [23, -13, 3.4]]) {
+          ctx.beginPath();
+          ctx.arc(sf[0] + (Math.random() * 3 - 1.5), sf[1], sf[2], 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     } else if (curW === 'launcher') {
       ctx.fillStyle = '#4a5d3a';
       roundRect(-6, -5, 34, 11, 5);
@@ -3992,10 +4157,10 @@
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
     levelEl.textContent = lvl && lvl.final ? '🔥 ФИНАЛ · МЕГА-ДРЫН' : 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1);
+    const W2h = WEAPONS.find(w2 => w2.id === curW);
     if (curW === 'shotgun') ammoEl.textContent = '🔫 ' + (infAmmo ? '∞' : ammo);
-    else if (curW === 'uzi') ammoEl.textContent = '🔥 Uzi ' + (infAmmo ? '∞' : wauzi);
-    else if (curW === 'launcher') ammoEl.textContent = '💣 ' + (infAmmo ? '∞' : walaun);
-    else ammoEl.textContent = '⚔️ ∞';
+    else if (W2h.ammoKey) ammoEl.textContent = W2h.emoji + ' ' + W2h.name + ' ' + (infAmmo ? '∞' : wammo[W2h.ammoKey]) + (curW === 'minigun' && !infAmmo ? (mgHot ? ' ♨️ ПЕРЕГРЕВ!' : ' ♨️' + Math.round(mgHeat) + '%') : '');
+    else ammoEl.textContent = W2h.emoji + ' ∞';
     totemEl.style.display = totem ? 'inline-block' : 'none';
     totemEl.textContent = '🐾 Тотем' + (totemCharges > 1 ? ' ×' + totemCharges : '');
     if (bankEl) bankEl.textContent = '💰 ' + bank;
@@ -4100,9 +4265,13 @@
     }
     if (['KeyX','KeyF'].includes(e.code)) fire();
     if (e.code === 'Digit1') selectWeapon('shotgun');
-    if (e.code === 'Digit2') selectWeapon('uzi');
-    if (e.code === 'Digit3') selectWeapon('launcher');
-    if (e.code === 'Digit4') selectWeapon('katana');
+    if (e.code === 'Digit2') selectWeapon('pistol');
+    if (e.code === 'Digit3') selectWeapon('kalash');
+    if (e.code === 'Digit4') selectWeapon('uzi');
+    if (e.code === 'Digit5') selectWeapon('avik');
+    if (e.code === 'Digit6') selectWeapon('launcher');
+    if (e.code === 'Digit7') selectWeapon('katana');
+    if (e.code === 'Digit8') selectWeapon('minigun');
     if (e.code === 'KeyH') document.getElementById('controlsWnd').classList.toggle('hidden');
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
@@ -4128,9 +4297,13 @@
     { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 150 },
   ];
   const WEAPON_SHOP = [
-    { kind: 'gun', wid: 'uzi', emoji: '🔥', name: 'Узи', desc: 'скорострельный · свои патроны', price: 1000, needCh: 2 },
-    { kind: 'gun', wid: 'launcher', emoji: '💣', name: 'Гранатомёт', desc: 'взрыв по площади · свои патроны', price: 2000, needCh: 4 },
-    { kind: 'gun', wid: 'katana', emoji: '⚔️', name: 'Катана', desc: 'ближний бой · патроны не нужны', price: 1500, needCh: 6 },
+    { kind: 'gun', wid: 'pistol', emoji: '🎯', name: 'Пистолет', desc: 'точный и лёгкий · свои патроны', price: 600, needCh: 2, pack: 30, packPrice: 120 },
+    { kind: 'gun', wid: 'kalash', emoji: '🧨', name: 'Калаш', desc: 'автомат · свои патроны', price: 1200, needCh: 3, pack: 60, packPrice: 200 },
+    { kind: 'gun', wid: 'uzi', emoji: '🎇', name: 'Узи ×2', desc: 'по узи в каждую руку · свои патроны', price: 1600, needCh: 4, pack: 60, packPrice: 220 },
+    { kind: 'gun', wid: 'avik', emoji: '🔭', name: 'Авик', desc: 'авто-винтовка с оптикой, пуля пробивает 2 врагов', price: 2600, needCh: 5, pack: 40, packPrice: 260 },
+    { kind: 'gun', wid: 'launcher', emoji: '💣', name: 'Гранатомёт', desc: 'взрыв по площади · свои патроны', price: 2200, needCh: 6, pack: 8, packPrice: 250 },
+    { kind: 'gun', wid: 'katana', emoji: '⚔️', name: 'Катана', desc: 'ближний бой · патроны не нужны', price: 1800, needCh: 7 },
+    { kind: 'gun', wid: 'minigun', emoji: '🔥', name: 'Миниган', desc: 'двуручный шквал · раскаляется за 2 сек огня ♨️', price: 4000, needCh: 8, pack: 300, packPrice: 320 },
   ];
   const COSMETICS = [
     { id: 'hat', cat: 'head', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
@@ -4247,24 +4420,23 @@
             if (bank < it.price) return;
             bank -= it.price;
             wowned[it.wid] = true;
-            if (it.wid === 'uzi') wauzi += 30;
-            if (it.wid === 'launcher') walaun += 8;
+            if (it.wid !== 'katana') wammo[it.wid] += it.pack || 0;
             saveProg(); updateHud(); renderShop();
-            flash(it.emoji + ' ' + it.name + ' куплен! Переключение: 1–4', 100);
+            flash(it.emoji + ' ' + it.name + ' куплен! Переключение: 1–8', 100);
           };
         } else if (it.wid === 'katana') {
           row.classList.add('owned');
           btn.textContent = '✓ Куплено (без патронов)';
           btn.disabled = true;
         } else {
-          info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">склад: ' + (it.wid === 'uzi' ? wauzi : walaun) + ' патронов · ' + it.desc + '</span>';
-          const pNum = it.wid === 'uzi' ? 30 : 8, pPrice = it.wid === 'uzi' ? 150 : 250;
+          info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">склад: ' + wammo[it.wid] + ' патронов · ' + it.desc + '</span>';
+          const pNum = it.pack, pPrice = it.packPrice;
           btn.textContent = '📎 +' + pNum + ' (' + pPrice + ')';
           btn.disabled = bank < pPrice;
           btn.onclick = () => {
             if (bank < pPrice) return;
             bank -= pPrice;
-            if (it.wid === 'uzi') wauzi += pNum; else walaun += pNum;
+            wammo[it.wid] += pNum;
             saveProg(); updateHud(); renderShop();
             flash('+' + pNum + ' патронов!', 60);
           };
@@ -4336,8 +4508,8 @@
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
     bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
-    wowned = {}; wauzi = 0; walaun = 0; curW = 'shotgun';
-    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); localStorage.removeItem('pf_wowned'); localStorage.removeItem('pf_wauzi'); localStorage.removeItem('pf_walaun'); } catch (e) {}
+    wowned = {}; wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 }; mgHeat = 0; mgHot = false; curW = 'shotgun';
+    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); localStorage.removeItem('pf_wowned'); localStorage.setItem('pf_wammo', JSON.stringify(wammo)); } catch (e) {}
     setMuted(false);
     setShowAim(true);
     updateHud();
@@ -4381,7 +4553,7 @@
   document.getElementById('admRetry').onclick = () => { if (state !== 'menu') { respawnAtCp(); state = 'play'; } };
   document.getElementById('admGod').onclick = e => { god = !god; e.target.classList.toggle('on', god); };
   document.getElementById('admAmmo').onclick = e => { infAmmo = !infAmmo; e.target.classList.toggle('on', infAmmo); };
-  document.getElementById('admPlus').onclick = () => { ammo += 10; wauzi += 20; walaun += 6; saveProg(); updateHud(); flash('+патроны всем', 40); };
+  document.getElementById('admPlus').onclick = () => { ammo += 10; for (const k in wammo) wammo[k] += 60; mgHeat = 0; mgHot = false; saveProg(); updateHud(); flash('+патроны всем', 40); };
   document.getElementById('admTotem').onclick = () => { totem = !totem; updateHud(); flash(totem ? 'Тотем выдан' : 'Тотем снят', 40); };
   document.getElementById('admKillBoss').onclick = () => {
     if (mega && !mega.dead) {
