@@ -1053,7 +1053,7 @@
   let endless = false, endlessN = 0, ebest = 0;
   try { ebest = parseInt(localStorage.getItem('pf_ebest') || '0', 10) || 0; } catch (e) { ebest = 0; }
   let boss = null, fireballs = [], bossHazes = [], coyote = 0, playT = 0, lastSec = -1, mega = null;
-  let theHell = false, hellW = 'shotgun', hellFrames = 0, hellSpawn = 0, hellLastS = -1, hellReturn = 0;
+  let theHell = false, hellW = 'shotgun', hellFrames = 0, hellSpawn = 0, hellLastS = -1, hellReturn = 0, gargSpawn = 0;
   let aim = { mx: null, my: null };
   let god = false, infAmmo = false;
   let bank = +(localStorage.getItem('pf_bank') || 0) || 0;
@@ -1196,7 +1196,7 @@
     catPickups = { x: 48, y: 408, w: 44, h: 36, given: true };
     camX = 0; particles = []; splats = []; gibs = [];
     curW = 'minigun'; mgHeat = 0; mgHot = false; mgLastHud = -1;
-    theHell = true; hellFrames = 3600; hellSpawn = 50; hellLastS = -1;
+    theHell = true; hellFrames = 3600; hellSpawn = 50; gargSpawn = 200; hellLastS = -1;
     safeT = 50; appearT = 20;
     lastSafe = { x: 120, y: 380 };
     state = 'play';
@@ -1224,20 +1224,65 @@
     if (e.vy === undefined) e.vy = 0;
     const px = player.x + player.w / 2;
     e.dir = px > e.x + e.w / 2 ? 1 : -1;
-    e.x += e.dir * 1.15;
-    e.x = Math.max(10, Math.min(lvl.width - e.w - 10, e.x));
     e.vy += 0.5;
     e.y += e.vy;
+    let ground = false;
     for (const pl of platforms) {
       if (e.vy >= 0 && e.x + e.w > pl.x && e.x < pl.x + pl.w) {
         const bot = e.y + e.h;
         if (bot >= pl.y && bot <= pl.y + Math.max(24, e.vy + 8)) {
           e.y = pl.y - e.h;
           e.vy = 0;
+          ground = true;
           break;
         }
       }
     }
+    if (ground) {
+      e.hopCd = (e.hopCd === undefined ? 40 : e.hopCd) - 1;
+      if (e.hopCd <= 0) {
+        e.hopCd = 60 + Math.random() * 100;
+        e.vy = -(3.6 + Math.random() * 1.7);
+        if (Math.random() < 0.55) e.dir = -e.dir;
+      } else if (muzzleT > 0 && Math.random() < 0.14) {
+        e.vy = -4;
+        if (Math.random() < 0.4) e.dir = -e.dir;
+        e.hopCd = Math.max(e.hopCd, 30);
+      }
+    }
+    e.x += e.dir * 1.15;
+    e.x = Math.max(10, Math.min(lvl.width - e.w - 10, e.x));
+  }
+  function gargAI(e) {
+    const px = player.x + player.w / 2;
+    e.x += e.dir * 2.3;
+    if (e.dir === 1 && e.x + e.w / 2 > px + 270) e.dir = -1;
+    if (e.dir === -1 && e.x + e.w / 2 < px - 270) e.dir = 1;
+    e.x = Math.max(10, Math.min(lvl.width - e.w - 10, e.x));
+    e.y = e.fy + Math.sin(time * 2.2 + e.ph) * 28;
+  }
+  function drawGarg(e, bob) {
+    const cx = e.x + e.w / 2, y0 = e.y + bob;
+    ctx.save();
+    ctx.translate(cx, y0);
+    if (e.dir === -1) ctx.scale(-1, 1);
+    const w = e.w, h = e.h;
+    ctx.fillStyle = '#565e6a';
+    const wf = Math.sin(time * 16 + e.ph) * 11;
+    ctx.beginPath(); ctx.moveTo(-(w / 2 - 8), 4); ctx.quadraticCurveTo(-(w / 2 + 24), -16 + wf, -(w / 2 + 36), 10 + wf); ctx.quadraticCurveTo(-(w / 2 + 14), 12, -(w / 2 - 8), 13); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(w / 2 - 8, 4); ctx.quadraticCurveTo(w / 2 + 24, -16 + wf, w / 2 + 36, 10 + wf); ctx.quadraticCurveTo(w / 2 + 14, 12, w / 2 - 8, 13); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#6b7482';
+    roundRect(-(w / 2) - 1, 0, w + 2, h, 10); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(-(w / 2 - 2), 2); ctx.lineTo(-(w / 2 - 6), -9); ctx.lineTo(-(w / 2 - 11), 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(w / 2 - 2, 2); ctx.lineTo(w / 2 - 6, -9); ctx.lineTo(w / 2 - 11, 3); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#bff3ff';
+    ctx.beginPath(); ctx.arc(4, 10, 3.2, 0, Math.PI * 2); ctx.arc(-7, 10, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#25324a';
+    ctx.beginPath(); ctx.arc(5, 11, 1.5, 0, Math.PI * 2); ctx.arc(-6, 11, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#3a4048'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(-2, 15, 4.5, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    ctx.restore();
   }
   function drawImp(e, bob) {
     const cx = e.x + e.w / 2, y0 = e.y + bob;
@@ -1325,7 +1370,7 @@
     for (const e of enemies) {
       if (!e.dead && rectsHit(kr, e)) {
         e.dead = true;
-        spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 10);
+        spawnGibs(e.x + e.w / 2, e.y + 10, gibCols(e), 10);
         spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 18, 6, 3.5, true);
         spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 9, 5, 3, true);
         shake = Math.max(shake, 5);
@@ -1447,14 +1492,14 @@
           if (b.pierce > 0) {
             b.pierce--;
             SFX.squish();
-            spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 7);
+            spawnGibs(e.x + e.w / 2, e.y + 10, gibCols(e), 7);
             spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 12, 5, 3, true);
             continue;
           }
           b.dead = true;
           shake = Math.max(shake, 3);
           SFX.squish();
-          spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 9);
+          spawnGibs(e.x + e.w / 2, e.y + 10, gibCols(e), 9);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
           break;
@@ -1534,7 +1579,7 @@
       for (const e of enemies) {
         if (!e.dead && rectsHit(er, e)) {
           e.dead = true;
-          spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 11);
+          spawnGibs(e.x + e.w / 2, e.y + 10, gibCols(e), 11);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
         }
@@ -1645,6 +1690,9 @@
     const q = v => Math.max(0, Math.min(255, Math.round(v * f)));
     return 'rgb(' + q(r) + ',' + q(g) + ',' + q(b) + ')';
   }
+  function gibCols(e) {
+    return e.garg ? ['#6b7482', '#4a515c', '#8f97a3'] : enemyGibCols();
+  }
   function enemyGibCols() {
     const c = ENEMY_LOOK[lvl.theme];
     return [c, shade(c, 0.6), shade(c, 1.25)];
@@ -1684,15 +1732,31 @@
       if (hellFrames <= 0) { exitHell(); return; }
       hellSpawn--;
       if (hellSpawn <= 0) {
-        hellSpawn = 18 + Math.floor(Math.random() * 10);
-        if (enemies.filter(e2 => !e2.dead).length < 20) {
-          const n2 = 1 + (Math.random() < 0.35 ? 1 : 0);
+        hellSpawn = 13 + Math.floor(Math.random() * 8);
+        if (enemies.filter(e2 => !e2.dead && !e2.garg).length < 26) {
+          const n2 = 1 + (Math.random() < 0.45 ? 1 : 0);
           for (let i = 0; i < n2; i++) {
             const side = Math.random() < 0.5 ? -1 : 1;
             let sx = player.x + 15 + side * (W / 2 + 70 + Math.random() * 150);
             sx = Math.max(10, Math.min(lvl.width - 40, sx));
-            enemies.push({ x: sx, x1: 0, x2: 1840, y: 410, w: 30, h: 30, imp: true, dir: side === -1 ? 1 : -1, dead: false, ph: Math.random() * 6, vy: 0 });
+            enemies.push({ x: sx, x1: 0, x2: 1840, y: 410, w: 30, h: 30, imp: true, dir: side === -1 ? 1 : -1, dead: false, ph: Math.random() * 6, vy: 0, hopCd: 40 + Math.random() * 80 });
           }
+        }
+      }
+      gargSpawn--;
+      if (gargSpawn <= 0) {
+        gargSpawn = 300 + Math.floor(Math.random() * 160);
+        if (enemies.filter(e2 => !e2.dead && e2.garg).length < 4) {
+          const n3 = 1 + (Math.random() < 0.4 ? 1 : 0);
+          for (let i = 0; i < n3; i++) {
+            const side = Math.random() < 0.5 ? -1 : 1;
+            let sx = player.x + 15 + side * (W / 2 + 120 + Math.random() * 180);
+            sx = Math.max(10, Math.min(lvl.width - 40, sx));
+            const fy = 175 + Math.random() * 115;
+            enemies.push({ x: sx, x1: 0, x2: 1840, y: fy, fy, w: 32, h: 26, garg: true, dir: side === -1 ? 1 : -1, dead: false, ph: Math.random() * 6 });
+          }
+          flash('🦇 ГОРГУЛЬИ!', 45);
+          SFX.bossRoar();
         }
       }
     }
@@ -1807,6 +1871,7 @@
     for (const e of enemies) {
       if (e.dead) continue;
       if (e.imp) { impAI(e); }
+      else if (e.garg) { gargAI(e); }
       else if (e.x2 - e.x1 > 80) {
         e.x += e.dir * ENEMY_SPEED;
         if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
@@ -3514,6 +3579,7 @@
       if (e.dead) continue;
       const bob = Math.sin(time * 5 + e.ph) * 1.5;
       if (e.imp) { drawImp(e, bob); continue; }
+      if (e.garg) { drawGarg(e, bob); continue; }
       ctx.fillStyle = ENEMY_LOOK[lvl.theme];
       roundRect(e.x, e.y + bob, e.w, e.h, 11);
       ctx.fill();
