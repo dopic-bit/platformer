@@ -162,6 +162,7 @@
   }
   .shopitem button:disabled { background: #2c3547; color: #77839b; cursor: default; }
   .shopitem.owned button { background: #2c3547; color: #7ee2a8; cursor: default; }
+  .shopitem.worn button { background: #973a2e; }
   .srow button.off { background: #973a2e; }
 </style>
 </head>
@@ -670,6 +671,8 @@
   let unlocked = +(localStorage.getItem('pf_unlocked') || 1) || 1;
   let owned = {};
   try { owned = JSON.parse(localStorage.getItem('pf_owned') || '{}') || {}; } catch (e) { owned = {}; }
+  let equipped = {};
+  try { equipped = JSON.parse(localStorage.getItem('pf_equipped') || '{}') || {}; } catch (e) { equipped = {}; }
   let showAimDot = localStorage.getItem('pf_aim') !== '0';
   let totemCharges = 0;
   function hasIt(id) { return !!owned[id]; }
@@ -678,6 +681,7 @@
       localStorage.setItem('pf_bank', bank);
       localStorage.setItem('pf_unlocked', unlocked);
       localStorage.setItem('pf_owned', JSON.stringify(owned));
+      localStorage.setItem('pf_equipped', JSON.stringify(equipped));
     } catch (e) {}
   }
 
@@ -1298,7 +1302,7 @@
     ctx.ellipse(cx - 7, y + 8, 6, 3.5, -0.4, 0, Math.PI * 2);
     ctx.fill();
 
-    if (hasIt('hat')) {
+    if (wearing('hat')) {
       ctx.fillStyle = '#ffcf3f';
       ctx.beginPath();
       ctx.ellipse(cx, y + 2.5, 16, 4.5, 0, 0, Math.PI * 2);
@@ -1310,7 +1314,7 @@
       ctx.fill();
       ctx.stroke();
     }
-    if (hasIt('crown') && !hasIt('hat')) {
+    if (wearing('crown') && !wearing('hat')) {
       ctx.fillStyle = '#ffcf3f';
       ctx.beginPath();
       ctx.moveTo(cx - 12, y + 3);
@@ -1351,7 +1355,7 @@
     ctx.lineTo(ex + 9.5, y + 2.5);
     ctx.stroke();
 
-    if (hasIt('glasses')) {
+    if (wearing('glasses')) {
       ctx.fillStyle = '#15151d';
       roundRect(ex - 11.5, y + 5.5, 23, 9, 4);
       ctx.fill();
@@ -1361,7 +1365,7 @@
       ctx.fillRect(ex + 3, y + 7, 5, 2);
     }
 
-    if (hasIt('mustache')) {
+    if (wearing('mustache')) {
       ctx.fillStyle = '#4a2f18';
       ctx.beginPath();
       ctx.ellipse(ex - 5, y + 17.5, 6, 2.5, 0.35, 0, Math.PI * 2);
@@ -1997,10 +2001,24 @@
     { id: 'trailfire', cat: 'trail', emoji: '🔥', name: 'Огненный след', desc: 'пламя за спиной', price: 1800 },
     { id: 'trailice', cat: 'trail', emoji: '❄️', name: 'Ледяной след', desc: 'морозный вихрь', price: 1200 },
   ];
+  const COSCAT = {};
+  COSMETICS.forEach(c => COSCAT[c.id] = c.cat);
+  function wearing(id) { return !!owned[id] && !!equipped[id]; }
+  function toggleWear(id) {
+    if (!owned[id]) return;
+    if (equipped[id]) equipped[id] = false;
+    else {
+      const cat = COSCAT[id];
+      if (cat === 'head' || cat === 'trail') COSMETICS.forEach(c => { if (c.cat === cat) equipped[c.id] = false; });
+      equipped[id] = true;
+    }
+    saveProg();
+    renderShop();
+  }
   function trailKind() {
-    if (owned.trailrain) return 'rainbow';
-    if (owned.trailfire) return 'fire';
-    if (owned.trailice) return 'ice';
+    if (wearing('trailrain')) return 'rainbow';
+    if (wearing('trailfire')) return 'fire';
+    if (wearing('trailice')) return 'ice';
     return null;
   }
   function showMenuScr(s) {
@@ -2047,9 +2065,15 @@
       row.appendChild(info);
       const btn = document.createElement('button');
       if (owned[it.id]) {
-        row.classList.add('owned');
-        btn.textContent = '✓ Куплено';
-        btn.disabled = true;
+        if (it.cat) {
+          row.classList.toggle('worn', wearing(it.id));
+          btn.textContent = wearing(it.id) ? '✕ Снять' : '✓ Одеть';
+          btn.onclick = () => { ac(); toggleWear(it.id); };
+        } else {
+          row.classList.add('owned');
+          btn.textContent = '✓ Куплено';
+          btn.disabled = true;
+        }
       } else {
         btn.textContent = '💰 ' + it.price;
         btn.disabled = bank < it.price;
@@ -2057,6 +2081,10 @@
           if (bank < it.price) return;
           bank -= it.price;
           owned[it.id] = true;
+          if (it.cat) {
+            if (it.cat === 'head' || it.cat === 'trail') COSMETICS.forEach(c => { if (c.cat === it.cat) equipped[c.id] = false; });
+            equipped[it.id] = true;
+          }
           saveProg();
           updateHud();
           renderShop();
@@ -2098,8 +2126,8 @@
   document.getElementById('setAim').onclick = () => setShowAim(!showAimDot);
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
-    bank = 0; unlocked = 1; owned = {}; score = 0;
-    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_best'); } catch (e) {}
+    bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
+    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); } catch (e) {}
     setMuted(false);
     setShowAim(true);
     updateHud();
