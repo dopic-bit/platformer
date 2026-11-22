@@ -83,6 +83,21 @@
     cursor: pointer;
   }
   .tab.on { background: #ff6b6b; color: #fff; }
+  #cutscene { position: absolute; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; }
+  #cutscene.hidden { display: none; }
+  .cst {
+    width: 420px; max-width: 92%; text-align: center; color: #eef3ff;
+    font: 14px Segoe UI, system-ui, sans-serif; background: rgba(10,13,22,.72);
+    border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 18px 20px;
+  }
+  .cEmoji { font-size: 46px; }
+  .cTitle { font: 800 17px Segoe UI, system-ui, sans-serif; color: #ffd76b; margin: 8px 0 10px; letter-spacing: .5px; }
+  .cText { min-height: 60px; line-height: 1.45; }
+  .cStep { color: #8b97ad; font-size: 11.5px; margin: 8px 0; }
+  .cBtns { display: flex; gap: 8px; justify-content: center; }
+  .cBtns button { padding: 8px 14px; border: none; border-radius: 999px; font: 700 13px Segoe UI, system-ui, sans-serif; cursor: pointer; }
+  #cutNext { background: #ff6b6b; color: #fff; }
+  #cutSkip { background: #2c3547; color: #aab6cb; }
   #touch { position: absolute; inset: 0; display: none; }
   #touch div {
     position: absolute; bottom: 16px; width: 72px; height: 72px; border-radius: 50%;
@@ -138,7 +153,11 @@
   .mhead { font-size: 22px; font-weight: 700; color: #ffd76b; margin-bottom: 8px; }
   .mscr { display: flex; flex-direction: column; align-items: center; gap: 8px; max-height: 100%; overflow: auto; padding: 10px; }
   .mscr.hidden { display: none; }
-  .lvls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 420px; }
+  .lvls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 420px; max-height: 320px; overflow-y: auto; padding: 4px 2px; }
+  .chcap { width: 100%; text-align: left; padding: 8px 10px 2px; display: flex; flex-direction: column; gap: 1px; }
+  .chcap b { color: #ffd76b; font-size: 14px; }
+  .chcap span { color: #aab6cb; font-size: 11.5px; }
+  .chcap.lockedch { opacity: .55; }
   .lvls button {
     width: 128px; padding: 10px 0; border: none; border-radius: 10px;
     background: #35425a; color: #fff; font: 700 14px Segoe UI, system-ui, sans-serif; cursor: pointer;
@@ -236,6 +255,18 @@
       <div class="crow"><span>Пауза/меню</span><b>ESC</b></div>
       <div class="crow"><span>Админ-панель</span><b>~</b></div>
       <button id="ctrlClose">Понятно</button>
+    </div>
+  </div>
+  <div id="cutscene" class="hidden">
+    <div class="cst">
+      <div class="cEmoji" id="cutEmoji">🌿</div>
+      <div class="cTitle" id="cutTitle"></div>
+      <div class="cText" id="cutText"></div>
+      <div class="cStep" id="cutStep"></div>
+      <div class="cBtns">
+        <button id="cutNext">Далее ▸</button>
+        <button id="cutSkip">Пропустить ▸▸</button>
+      </div>
     </div>
   </div>
   <button id="adminBtn" title="Админ-панель (~)">🛠</button>
@@ -395,7 +426,7 @@
     },
   };
 
-  const LEVELS = [
+  const HAND = [
     {
       width: 2200, theme: 'meadow',
       spawn: { x: 40, y: 380 },
@@ -646,6 +677,187 @@
     },
   ];
 
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function genRun(rng, n) {
+    const isles = [];
+    let x = 0;
+    for (let i = 0; i < n; i++) {
+      const w = Math.round(230 + rng() * 190);
+      const high = i === 0 ? 440 : (rng() < 0.3 ? 400 : 440);
+      isles.push({ x: x, y: high, w: w, h: 40 });
+      x += w + Math.round(70 + rng() * 55);
+    }
+    return { isles: isles, end: x };
+  }
+  function genLevel(ci, si) {
+    const isBoss = si === 9;
+    const rng = mulberry32(ci * 97 + si * 13 + 7);
+    const theme = ['meadow', 'desert', 'snow', 'volcano', 'night', 'ocean', 'swamp', 'space'][ci];
+    const run = genRun(rng, isBoss ? 5 : 5 + Math.min(4, Math.floor((si + ci) / 2)));
+    const isles = run.isles.slice();
+    if (isBoss) isles.push({ x: run.end, y: 440, w: 1500, h: 40 });
+    const last = isles.length - 1;
+    const cpList = isBoss ? [1, last] : (last > 2 ? [1, last - 1] : [1]);
+    const noSpk = new Set(cpList); noSpk.add(0); noSpk.add(last);
+    const platforms = [], coins = [], spikes = [], enemies = [], checkpoints = [], ammo = [];
+    isles.forEach((g, gi) => {
+      platforms.push(g);
+      if (!noSpk.has(gi) && rng() < 0.55) {
+        const sw = 24 + Math.round(rng()) * 24;
+        const sx = g.x + 60 + Math.floor(rng() * (g.w - 120 - sw));
+        spikes.push({ x: sx, y: g.y - 20, w: sw, h: 20 });
+      }
+      if (gi > 0) {
+        const floatY = g.y - 90;
+        if (rng() < 0.8 && (!isBoss || gi < last)) {
+          const fw = 90 + Math.round(rng() * 50);
+          const fx = g.x + 20 + Math.floor(rng() * Math.max(1, g.w - fw - 40));
+          platforms.push({ x: fx, y: floatY, w: fw, h: 16 });
+          coins.push({ x: fx + Math.round(fw / 2), y: floatY - 42 });
+          if (fw >= 120 && rng() < 0.5) {
+            const mn = fx + 40, mx = fx + fw - 69;
+            const px = Math.round(mn + rng() * Math.max(0, mx - mn));
+            enemies.push({ x: px, x1: px, x2: px + 29, y: floatY - 29 });
+          }
+          if (rng() < 0.4) {
+            const fx2 = fx + Math.round(rng() * 20);
+            platforms.push({ x: fx2, y: floatY - 90, w: fw, h: 16 });
+            coins.push({ x: fx2 + Math.round(fw / 2), y: floatY - 132 });
+          }
+        }
+      }
+      if (gi > 0 && !noSpk.has(gi) && g.w >= 340) {
+        const pad = 48;
+        const room = g.w - pad * 2 - 29;
+        if (room >= 100) {
+          const span = 100 + Math.floor(rng() * (room - 100 + 1));
+          const x1 = g.x + pad + Math.floor(rng() * (room - span + 1));
+          enemies.push({ x: x1 + Math.floor(span / 2), x1: x1, x2: x1 + span + 29, y: g.y - 29 });
+        }
+      }
+      if (!noSpk.has(gi)) {
+        coins.push({ x: g.x + 60, y: g.y - 35 });
+        if (rng() < 0.7) coins.push({ x: g.x + g.w - 60, y: g.y - 35 });
+      }
+      if (cpList.indexOf(gi) >= 0) {
+        checkpoints.push({ x: gi === last ? g.x + 60 : g.x + 50, y: g.y - 48 });
+        ammo.push({ x: gi === last ? g.x + 130 : g.x + 110, y: g.y - 40 });
+      }
+      if (gi === 0) ammo.push({ x: g.x + 170, y: 400 });
+      if (isBoss && gi === last) {
+        platforms.push({ x: g.x + 560, y: 350, w: 110, h: 16 });
+        platforms.push({ x: g.x + 1060, y: 350, w: 110, h: 16 });
+      }
+    });
+    if (!isBoss && enemies.length === 0) {
+      const g = isles.filter((gg, gi) => gi > 0 && !noSpk.has(gi)).sort((a, b) => b.w - a.w)[0];
+      if (g && g.w >= 340) {
+        const room = g.w - 96 - 29;
+        const x1 = g.x + 48 + Math.floor(rng() * (room - 100 + 1));
+        enemies.push({ x: x1 + 50, x1: x1, x2: x1 + 129, y: g.y - 29 });
+      }
+    }
+    if (isBoss) {
+      const a = isles[last];
+      return { width: a.x + 1520, theme: theme, spawn: { x: 40, y: 380 }, cat: { x: 60, y: 408 },
+        platforms: platforms, coins: coins, spikes: spikes, enemies: enemies,
+        checkpoints: checkpoints, ammo: ammo,
+        boss: { x: a.x + 200, y: 384, x1: a.x + 120, x2: a.x + 1330, hp: 10 + ci * 2, wall: a.x + 1380 },
+        flag: { x: a.x + 1430, y: 380 } };
+    }
+    const fl = isles[last];
+    return { width: fl.x + fl.w + 100, theme: theme, spawn: { x: 40, y: 380 }, cat: { x: 60, y: 408 },
+      platforms: platforms, coins: coins, spikes: spikes, enemies: enemies,
+      checkpoints: checkpoints, ammo: ammo,
+      flag: { x: fl.x + fl.w - 70, y: 380 } };
+  }
+  function buildAll() {
+    const list = [];
+    for (let ci = 0; ci < 8; ci++) {
+      for (let si = 0; si < 10; si++) {
+        if (si === 0 && ci < 7) list.push(JSON.parse(JSON.stringify(HAND[ci])));
+        else if (ci === 7 && si === 9) {
+          const lv = JSON.parse(JSON.stringify(HAND[7]));
+          lv.boss.hp = 24;
+          list.push(lv);
+        } else list.push(genLevel(ci, si));
+      }
+    }
+    return list;
+  }
+  const LEVELS = buildAll();
+
+  const BOSS_SKINS = {
+    meadow: { body: '#4c8f45', dark: '#2c5f2a', name: 'ЦВЕТОЧНЫЙ ГРОМИЛА' },
+    desert: { body: '#c9995b', dark: '#8a6437', name: 'СУЛТАН ПЕСКОВ' },
+    snow: { body: '#9fc4e8', dark: '#5f87ad', name: 'ЛЕДЯНОЙ ЛЮТЫЙ' },
+    volcano: { body: '#c04a2a', dark: '#7a2a16', name: 'ЛАВОВЫЙ КОРОЛЬ' },
+    night: { body: '#3a4668', dark: '#232c44', name: 'ТЕНЕВОЙ ОХОТНИК' },
+    ocean: { body: '#3f7d8c', dark: '#28565f', name: 'КРАБ-МУТАНТ' },
+    swamp: { body: '#5d7a35', dark: '#3a5220', name: 'БОЛОТНЫЙ ЖУХ' },
+    space: { body: '#6d2f7a', dark: '#4a1e54', name: 'ЗЛОЙ ДРЫН' },
+  };
+  const CUT_INTRO = {
+    emoji: '🗡️', bg: 'linear-gradient(160deg,#232c44,#10131f)',
+    title: 'КАК ВСЁ НАЧАЛОСЬ',
+    lines: [
+      '🌿 Где-то вдали лежала тихая Луговая долина...',
+      '💀 Злой Дрын украл все монеты мира и разбросал их по 8 краям!',
+      '🔫 Только у нашего героя есть дробовик и упрямый характер.',
+      '🐱 Точнее — у героя и его кота, который дарит тотем бессмертия.',
+      '👑 8 глав. 8 боссов. Верни монеты. Стань легендой!',
+    ],
+  };
+  const CHAPTER_CUTS = {
+    meadow: { emoji: '🌿', bg: 'linear-gradient(160deg,#2f5d3a,#141d16)', title: 'ГЛАВА 1 · ЛУГ', lines: [
+      '🌿 Зелёные луга. Пахнет травой и приключениями.',
+      '👁 Местные глазастики нагло таскают монеты.',
+      '🔫 Пробей путь и разберись с Цветочным громилой!',
+    ] },
+    desert: { emoji: '🏜️', bg: 'linear-gradient(160deg,#7a5a2a,#241a0e)', title: 'ГЛАВА 2 · ПУСТЫНЯ', lines: [
+      '🌵 Пески горячие, как сковородка.',
+      '🦂 Здесь даже слизни ходят в сомбреро.',
+      '💰 Говорят, монеты охраняет Султан песков!',
+    ] },
+    snow: { emoji: '❄️', bg: 'linear-gradient(160deg,#3a5a80,#16202c)', title: 'ГЛАВА 3 · СНЕГА', lines: [
+      '❄️ Мороз трещит, монеты замерзают.',
+      '🧊 Глазастики надели зимние шапки — но тепла в них нет.',
+      '🔥 Дойди до Ледяного лютого и отогрей его дробовиком!',
+    ] },
+    volcano: { emoji: '🌋', bg: 'linear-gradient(160deg,#5a2430,#1c1016)', title: 'ГЛАВА 4 · ВУЛКАН', lines: [
+      '🌋 Лава, жара и очень злые жители.',
+      '😈 Рогатые глазастики бугают огнём.',
+      '💰 Впереди логово Лавового короля!',
+    ] },
+    night: { emoji: '🌙', bg: 'linear-gradient(160deg,#232c44,#0d1122)', title: 'ГЛАВА 5 · НОЧЬ', lines: [
+      '🌙 Ночь. Из травы только глаза и заговоры.',
+      '🗡 Теневые штуки маскируются под туман.',
+      '💰 Теневой охотник стережёт зеницы. Найди его!',
+    ] },
+    ocean: { emoji: '🌊', bg: 'linear-gradient(160deg,#2a6a80,#122630)', title: 'ГЛАВА 6 · ОКЕАН', lines: [
+      '🌊 Берег, чайки и солёный ветер.',
+      '🦀 Глазастики завели банданы и клешни не по чину.',
+      '💰 Краб-мутант уже точит клешни. Возьми дробовик!',
+    ] },
+    swamp: { emoji: '🐊', bg: 'linear-gradient(160deg,#3a4d24,#131a0e)', title: 'ГЛАВА 7 · БОЛОТО', lines: [
+      '🐊 Топь хлюпает, из тумана смотрят глаза.',
+      '🐸 Болота кишат жухами в касках.',
+      '💰 Болотный жух — последний до Злого Дрына!',
+    ] },
+    space: { emoji: '🚀', bg: 'linear-gradient(160deg,#221a4a,#0b0a1e)', title: 'ГЛАВА 8 · КОСМОС', lines: [
+      '🚀 Космос. Ниже только пустота.',
+      '🌟 Здесь заканчивается путь, и начинается Злой Дрын.',
+      '💀 Запасись патронами. Отбей монеты мира!',
+    ] },
+  };
+
   const GRAV = 0.55, MOVE = 1.1, MAX_VX = 4.2, JUMP = 11.5, FRICTION = 0.72, MAX_FALL = 12, LAND_TOL = 4;
   const COIN_R = 16;
   const PLAYER_W = 30, PLAYER_H = 38;
@@ -673,6 +885,8 @@
   try { owned = JSON.parse(localStorage.getItem('pf_owned') || '{}') || {}; } catch (e) { owned = {}; }
   let equipped = {};
   try { equipped = JSON.parse(localStorage.getItem('pf_equipped') || '{}') || {}; } catch (e) { equipped = {}; }
+  let cutSeen = {};
+  try { cutSeen = JSON.parse(localStorage.getItem('pf_cuts') || '{}') || {}; } catch (e) { cutSeen = {}; }
   let showAimDot = localStorage.getItem('pf_aim') !== '0';
   let totemCharges = 0;
   function hasIt(id) { return !!owned[id]; }
@@ -682,6 +896,7 @@
       localStorage.setItem('pf_unlocked', unlocked);
       localStorage.setItem('pf_owned', JSON.stringify(owned));
       localStorage.setItem('pf_equipped', JSON.stringify(equipped));
+      localStorage.setItem('pf_cuts', JSON.stringify(cutSeen));
     } catch (e) {}
   }
 
@@ -845,6 +1060,7 @@
             boss.dead = true;
             shake = 14;
             SFX.bossDie();
+            bank += 250; saveProg(); updateHud();
             spawnParticles(boss.x + 32, boss.y + 28, '#ff5b5b', 40, 10, 5);
             spawnParticles(boss.x + 32, boss.y + 28, '#ffc93c', 20, 8, 4);
             flash('БОСС ПОВЕРЖЕН!', 100);
@@ -1013,6 +1229,7 @@
       if (!boss.aggro && Math.abs(dx) < 650) {
         boss.aggro = true;
         SFX.bossRoar();
+        flash(BOSS_SKINS[lvl.theme].name + '!', 70);
         shake = Math.max(shake, 6);
         flash('БОСС!', 80);
       }
@@ -1071,8 +1288,9 @@
     }
     fireballs = fireballs.filter(fb => !fb.dead);
 
-    if (boss && !boss.dead && player.x + player.w > 4490) {
-      player.x = 4490 - player.w;
+    const bossWall = (lvl.boss && lvl.boss.wall) || 4490;
+    if (boss && !boss.dead && player.x + player.w > bossWall) {
+      player.x = bossWall - player.w;
       player.vx = Math.min(player.vx, 0);
       flash('Убей босса!', 20);
     }
@@ -1114,8 +1332,14 @@
       if (levelIdx + 1 < LEVELS.length) {
         levelIdx++;
         if (levelIdx + 1 > unlocked) { unlocked = levelIdx + 1; saveProg(); }
-        loadLevel(levelIdx);
-        flash('Уровень ' + (levelIdx + 1) + '!', 80);
+        const nxt = levelIdx;
+        const goN = () => { loadLevel(nxt); state = 'play'; flash('Гл ' + (Math.floor(nxt / 10) + 1) + ' арена ' + (nxt % 10 + 1), 80); };
+        if (nxt % 10 === 0 && !cutSeen[LEVELS[nxt].theme]) {
+          cutSeen[LEVELS[nxt].theme] = true;
+          saveProg();
+          state = 'menu';
+          playCut(LEVELS[nxt].theme, goN);
+        } else goN();
       } else {
         state = 'win';
         SFX.win();
@@ -1356,23 +1580,31 @@
     ctx.stroke();
 
     if (wearing('glasses')) {
-      ctx.fillStyle = '#15151d';
-      roundRect(ex - 11.5, y + 5.5, 23, 9, 4);
-      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#20242e';
+      ctx.beginPath();
+      ctx.moveTo(ex - 10.5, y + 8); ctx.lineTo(ex - 15, y + 6);
+      ctx.moveTo(ex + 10.5, y + 8); ctx.lineTo(ex + 15, y + 6);
+      ctx.moveTo(ex - 0.8, y + 8.5); ctx.lineTo(ex + 0.8, y + 8.5);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.35)';
-      ctx.fillRect(ex - 8, y + 7, 5, 2);
-      ctx.fillRect(ex + 3, y + 7, 5, 2);
+      ctx.fillStyle = '#15151d';
+      roundRect(ex - 11, y + 4.5, 10, 10, 3.5);
+      ctx.fill(); ctx.stroke();
+      roundRect(ex + 1, y + 4.5, 10, 10, 3.5);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(120,180,255,.4)';
+      roundRect(ex - 9.5, y + 6, 7, 3.2, 1.6); ctx.fill();
+      roundRect(ex + 2.5, y + 6, 7, 3.2, 1.6); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,.55)';
+      ctx.beginPath();
+      ctx.moveTo(ex - 10, y + 5.2); ctx.lineTo(ex - 5.5, y + 5.2); ctx.lineTo(ex - 9.5, y + 12.5); ctx.lineTo(ex - 10.5, y + 12.5);
+      ctx.closePath(); ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(ex + 2, y + 5.2); ctx.lineTo(ex + 5.5, y + 5.2); ctx.lineTo(ex + 3, y + 11); ctx.lineTo(ex + 2, y + 11);
+      ctx.closePath(); ctx.fill();
     }
 
-    if (wearing('mustache')) {
-      ctx.fillStyle = '#4a2f18';
-      ctx.beginPath();
-      ctx.ellipse(ex - 5, y + 17.5, 6, 2.5, 0.35, 0, Math.PI * 2);
-      ctx.ellipse(ex + 5, y + 17.5, 6, 2.5, -0.35, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
+
 
     ctx.save();
     ctx.translate(cx + f * 6, gy);
@@ -1527,6 +1759,54 @@
     ctx.restore();
   }
 
+  function drawEnemyHat(e, bob) {
+    const tx = e.x + e.w / 2, ty = e.y + bob;
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#1a1a1a';
+    if (lvl.theme === 'meadow') {
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 5; i++) {
+        const a = -Math.PI / 2 + (i - 2) * 0.28;
+        ctx.beginPath(); ctx.arc(tx + Math.cos(a) * 4.5, ty - 4 + Math.sin(a) * 4.5, 2.6, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#ffcf3f';
+      ctx.beginPath(); ctx.arc(tx, ty - 4, 2.4, 0, Math.PI * 2); ctx.fill();
+    } else if (lvl.theme === 'desert') {
+      ctx.fillStyle = '#e8c07a';
+      ctx.beginPath(); ctx.ellipse(tx, ty - 5, 15, 3.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(tx, ty - 8, 7, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    } else if (lvl.theme === 'snow') {
+      ctx.fillStyle = '#d84a4a';
+      ctx.beginPath(); ctx.arc(tx, ty - 4, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#f4f9ff';
+      ctx.fillRect(tx - 9, ty - 5, 18, 3);
+      ctx.beginPath(); ctx.arc(tx, ty - 13, 3.2, 0, Math.PI * 2); ctx.fill();
+    } else if (lvl.theme === 'volcano') {
+      ctx.fillStyle = '#8a8f99';
+      ctx.beginPath(); ctx.moveTo(tx - 10, ty - 2); ctx.lineTo(tx - 14, ty - 11); ctx.lineTo(tx - 4, ty - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(tx + 10, ty - 2); ctx.lineTo(tx + 14, ty - 11); ctx.lineTo(tx + 4, ty - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
+    } else if (lvl.theme === 'night') {
+      ctx.fillStyle = 'rgba(16,20,36,.9)';
+      roundRect(tx - 13, ty + 2, 26, 6, 3); ctx.fill();
+      ctx.fillStyle = '#ffcf3f';
+      ctx.beginPath(); ctx.arc(tx - 5, ty + 5, 1.7, 0, Math.PI * 2); ctx.arc(tx + 5, ty + 5, 1.7, 0, Math.PI * 2); ctx.fill();
+    } else if (lvl.theme === 'ocean') {
+      ctx.fillStyle = '#e84f4f';
+      roundRect(tx - 12, ty - 4, 24, 5, 2); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(tx + 10, ty - 3); ctx.lineTo(tx + 18, ty - 6); ctx.lineTo(tx + 12, ty + 2); ctx.closePath(); ctx.fill();
+    } else if (lvl.theme === 'swamp') {
+      ctx.fillStyle = '#5a7d3a';
+      ctx.beginPath(); ctx.arc(tx, ty - 4, 9, Math.PI, 0); ctx.closePath(); ctx.fill();
+      ctx.fillRect(tx - 11, ty - 5, 22, 3);
+    } else if (lvl.theme === 'space') {
+      ctx.fillStyle = 'rgba(190,220,255,.3)';
+      ctx.beginPath(); ctx.arc(tx, ty + 2, 14, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#7fd8ff';
+      ctx.beginPath(); ctx.moveTo(tx - 13, ty - 4); ctx.lineTo(tx - 13, ty - 13); ctx.stroke();
+      ctx.fillStyle = '#ff5b5b';
+      ctx.beginPath(); ctx.arc(tx - 13, ty - 14, 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   function drawAngel() {
     if (!angel) return;
     const t = angel.t;
@@ -1730,19 +2010,20 @@
     }
 
     if (boss && !boss.dead) {
+      const skin = BOSS_SKINS[lvl.theme];
       const flashW = boss.iframes > 0 && Math.floor(boss.iframes / 3) % 2 === 0;
       const bx = boss.x, by = boss.y + Math.sin(time * 3) * 3;
       const faceL = player.x < bx;
-      ctx.fillStyle = flashW ? '#ffffff' : '#6d2f7a';
+      ctx.fillStyle = flashW ? '#ffffff' : skin.body;
       roundRect(bx, by, 64, 56, 12);
       ctx.fill();
       ctx.strokeStyle = '#1a1a1a';
       ctx.lineWidth = 3;
       ctx.stroke();
-      ctx.fillStyle = '#4a1e54';
+      ctx.fillStyle = skin.dark;
       ctx.fillRect(bx + 6, by + 48, 16, 10);
       ctx.fillRect(bx + 42, by + 48, 16, 10);
-      ctx.fillStyle = flashW ? '#ffffff' : '#6d2f7a';
+      ctx.fillStyle = flashW ? '#ffffff' : skin.body;
       ctx.beginPath();
       ctx.moveTo(bx + 8, by + 6);
       ctx.lineTo(bx + 2, by - 12);
@@ -1812,6 +2093,7 @@
       ctx.moveTo(ex - 6, e.y + 3 + bob); ctx.lineTo(ex - 1, e.y + 6 + bob);
       ctx.moveTo(ex + 12, e.y + 3 + bob); ctx.lineTo(ex + 7, e.y + 6 + bob);
       ctx.stroke();
+      drawEnemyHat(e, bob);
     }
 
     const cat = catPickups;
@@ -1917,7 +2199,7 @@
 
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
-    levelEl.textContent = 'Уровень ' + (levelIdx + 1);
+    levelEl.textContent = 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1);
     ammoEl.textContent = '🔫 ' + ammo;
     totemEl.style.display = totem ? 'inline-block' : 'none';
     totemEl.textContent = '🐾 Тотем' + (totemCharges > 1 ? ' ×' + totemCharges : '');
@@ -1935,6 +2217,21 @@
 
   function start() { startLevel(0); }
   function startLevel(i) {
+    const theme = LEVELS[i].theme;
+    const chain = [];
+    if (!cutSeen.intro) chain.push('intro');
+    if (i % 10 === 0 && !cutSeen[theme]) chain.push(theme);
+    if (!chain.length) { launchLevel(i); return; }
+    chain.forEach(k => { cutSeen[k] = true; });
+    saveProg();
+    const run = () => {
+      const k = chain.shift();
+      if (chain.length) playCut(k, run);
+      else playCut(k, () => launchLevel(i));
+    };
+    run();
+  }
+  function launchLevel(i) {
     score = 0; levelIdx = i; ammo = START_AMMO; playT = 0; lastSec = -1;
     loadLevel(i);
     state = 'play';
@@ -1942,6 +2239,36 @@
     hideOverlay();
     updateHud();
   }
+  function playCut(key, after) {
+    const c = key === 'intro' ? CUT_INTRO : CHAPTER_CUTS[key];
+    cutLines = c.lines; cutPos = 0; cutDone = after || null;
+    cutEl.style.background = c.bg;
+    cutEmojiEl.textContent = c.emoji;
+    cutTitleEl.textContent = c.title;
+    cutEl.classList.remove('hidden');
+    showCutLine();
+  }
+  function showCutLine() {
+    cutTextEl.textContent = cutLines[cutPos];
+    cutStepEl.textContent = (cutPos + 1) + ' / ' + cutLines.length;
+  }
+  function cutAdvance() {
+    if (cutPos < cutLines.length - 1) { cutPos++; ac(); showCutLine(); }
+    else endCut();
+  }
+  function endCut() {
+    cutEl.classList.add('hidden');
+    const f = cutDone; cutDone = null;
+    if (f) f();
+  }
+  const cutEl = document.getElementById('cutscene');
+  const cutEmojiEl = document.getElementById('cutEmoji');
+  const cutTitleEl = document.getElementById('cutTitle');
+  const cutTextEl = document.getElementById('cutText');
+  const cutStepEl = document.getElementById('cutStep');
+  document.getElementById('cutNext').onclick = () => cutAdvance();
+  document.getElementById('cutSkip').onclick = () => endCut();
+  cutEl.addEventListener('click', e => { if (e.target === cutEl) cutAdvance(); });
   function toMenu() {
     state = 'menu';
     overlay.classList.add('hidden');
@@ -1958,6 +2285,10 @@
   const keys = { left: false, right: false, jump: false };
   document.addEventListener('keydown', e => {
     ac();
+    if (cutEl && !cutEl.classList.contains('hidden')) {
+      if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); cutAdvance(); }
+      return;
+    }
     if (e.code === 'KeyM') setMuted(!muted);
     if (['ArrowLeft','KeyA'].includes(e.code)) keys.left = true;
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = true;
@@ -1966,7 +2297,10 @@
       e.preventDefault();
       if (state === 'menu') startLevel(0);
     }
-    if (e.code === 'Escape' && state === 'play') toMenu();
+    if (e.code === 'Escape') {
+      if (cutEl && !cutEl.classList.contains('hidden')) { cutDone = null; cutEl.classList.add('hidden'); }
+      if (state === 'play') toMenu();
+    }
     if (['KeyX','KeyF'].includes(e.code)) fire();
     if (e.code === 'KeyH') document.getElementById('controlsWnd').classList.toggle('hidden');
     if (e.code === 'KeyE') tryPet();
@@ -1996,7 +2330,6 @@
     { id: 'hat', cat: 'head', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
     { id: 'crown', cat: 'head', emoji: '👑', name: 'Корона', desc: 'для королей платформеров', price: 2500 },
     { id: 'glasses', cat: 'face', emoji: '🕶', name: 'Стильные очки', desc: 'тёмные очки с бликом', price: 1800 },
-    { id: 'mustache', cat: 'face', emoji: '🥸', name: 'Усы бандита', desc: 'солидности добавляют', price: 1200 },
     { id: 'trailrain', cat: 'trail', emoji: '🌈', name: 'Радужный след', desc: 'персонаж оставляет радугу', price: 1500 },
     { id: 'trailfire', cat: 'trail', emoji: '🔥', name: 'Огненный след', desc: 'пламя за спиной', price: 1800 },
     { id: 'trailice', cat: 'trail', emoji: '❄️', name: 'Ледяной след', desc: 'морозный вихрь', price: 1200 },
@@ -2032,12 +2365,19 @@
     const g = document.getElementById('lvlGrid');
     g.innerHTML = '';
     LEVELS.forEach((l, i) => {
+      const si = i % 10;
+      if (si === 0) {
+        const cap = document.createElement('div');
+        cap.className = 'chcap' + (i + 1 > unlocked ? ' lockedch' : '');
+        cap.innerHTML = '<b>' + menuEmoji[l.theme] + ' ГЛАВА ' + (Math.floor(i / 10) + 1) + ' · ' + menuName[l.theme].toUpperCase() + '</b><span>10 уровней · босс: ' + BOSS_SKINS[l.theme].name + '</span>';
+        g.appendChild(cap);
+      }
       const b = document.createElement('button');
       if (i + 1 > unlocked) {
         b.classList.add('locked');
-        b.textContent = '🔒 ' + menuEmoji[l.theme] + ' ' + (i + 1);
+        b.textContent = '🔒 ' + (si + 1);
       } else {
-        b.textContent = menuEmoji[l.theme] + ' L' + (i + 1) + ' ' + menuName[l.theme];
+        b.textContent = menuEmoji[l.theme] + ' ' + (si + 1) + (si === 9 ? ' 👑' : '');
         b.onclick = () => { ac(); startLevel(i); };
       }
       g.appendChild(b);
@@ -2126,8 +2466,8 @@
   document.getElementById('setAim').onclick = () => setShowAim(!showAimDot);
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
-    bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
-    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); } catch (e) {}
+    bank = 0; unlocked = 1; owned = {}; equipped = {}; cutSeen = {}; score = 0;
+    try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_cuts'); localStorage.removeItem('pf_best'); } catch (e) {}
     setMuted(false);
     setShowAim(true);
     updateHud();
@@ -2150,9 +2490,10 @@
     state = 'play';
     hideOverlay();
   }
-  LEVELS.forEach((_, i) => {
+  LEVELS.forEach((l, i) => {
+    if (i % 10 !== 0) return;
     const b = document.createElement('button');
-    b.textContent = 'L' + (i + 1);
+    b.textContent = 'Гл' + (i / 10 + 1);
     b.onclick = () => admGo(i);
     document.getElementById('admLvls').appendChild(b);
   });
@@ -2165,6 +2506,7 @@
   document.getElementById('admKillBoss').onclick = () => {
     if (boss && !boss.dead) {
       boss.dead = true;
+      bank += 250; saveProg(); updateHud();
       SFX.bossDie();
       spawnParticles(boss.x + 32, boss.y + 28, '#ff5b5b', 40, 10, 5);
       spawnParticles(boss.x + 32, boss.y + 28, '#ffc93c', 20, 8, 4);
