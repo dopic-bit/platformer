@@ -82,7 +82,7 @@
   <div id="overlay">
     <h1>Мини-платформер</h1>
     <p>← → или A/D — движение &nbsp;·&nbsp; ↑ / W / Пробел — прыжок<br>
-       X / F / клик — дробовик &nbsp;·&nbsp; E — погладить кошку (Тотем спасёт 1 раз)<br>
+       X / F / клик — дробовик &nbsp;·&nbsp; мышь — прицел &nbsp;·&nbsp; E — погладить кошку (Тотем спасёт 1 раз)<br>
        Собирай монеты, активируй чекпоинты, доберись до флага</p>
     <button class="btn" id="startBtn">Играть</button>
   </div>
@@ -158,6 +158,8 @@
     win() { [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => tone(f, 0.22, 'square', 0.13), i * 150)); },
     bossRoar() { tone(90, 0.6, 'sawtooth', 0.25, 40); },
     bossHit() { boom(0.08, 0.2); tone(160, 0.1, 'square', 0.12); },
+    bossCharge() { tone(110, 0.55, 'sawtooth', 0.14, 240); },
+    bossSpit() { tone(330, 0.22, 'square', 0.18, -130); boom(0.12, 0.15); },
     bossDie() { boom(0.6, 0.4); tone(70, 0.7, 'sawtooth', 0.25, 30); },
   };
 
@@ -465,6 +467,8 @@
         { x: 3270, y: 440, w: 400, h: 40 },
         { x: 3340, y: 350, w: 120, h: 16 },
         { x: 3750, y: 385, w: 100, h: 16 },
+        { x: 3960, y: 350, w: 110, h: 16 },
+        { x: 4300, y: 350, w: 110, h: 16 },
         { x: 3850, y: 440, w: 750, h: 40 },
       ],
       coins: [ {x:170,y:405},{x:210,y:405},{x:530,y:350},{x:700,y:400},{x:980,y:345},{x:1160,y:310},{x:1465,y:345},{x:1650,y:320},{x:2050,y:345},{x:2240,y:310},{x:2630,y:345},{x:2800,y:320},{x:3210,y:345},{x:3380,y:310},{x:3790,y:345},{x:4450,y:400} ],
@@ -472,8 +476,8 @@
       enemies: [ {x:700,x1:700,x2:790,y:411}, {x:1090,x1:1090,x2:1200,y:411}, {x:1680,x1:1680,x2:1850,y:411}, {x:2160,x1:2160,x2:2360,y:411}, {x:2790,x1:2790,x2:3010,y:411}, {x:3320,x1:3320,x2:3510,y:411} ],
       checkpoints: [ {x:1580,y:392}, {x:2740,y:392}, {x:3900,y:392} ],
       ammo: [ {x:190,y:400}, {x:1100,y:400}, {x:2260,y:400}, {x:3620,y:400}, {x:3960,y:400} ],
-      boss: { x: 4200, y: 384, x1: 4000, x2: 4540, hp: 12 },
-      flag: { x: 4520, y: 380 },
+      boss: { x: 4200, y: 384, x1: 4000, x2: 4510, hp: 12 },
+      flag: { x: 4555, y: 380 },
     },
   ];
 
@@ -495,6 +499,7 @@
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
   let boss = null, fireballs = [], coyote = 0, playT = 0, lastSec = -1;
+  let aim = { mx: null, my: null };
 
   function loadLevel(i) {
     lvl = LEVELS[i];
@@ -513,7 +518,7 @@
     ammoBoxes = (lvl.ammo || []).map(a => ({ ...a, taken: false }));
     bullets = [];
     fireballs = [];
-    boss = lvl.boss ? { x: lvl.boss.x, y: lvl.boss.y, w: 64, h: 56, dir: -1, hp: lvl.boss.hp, maxHp: lvl.boss.hp, dead: false, iframes: 0, spit: 90, x1: lvl.boss.x1, x2: lvl.boss.x2, aggro: false } : null;
+    boss = lvl.boss ? { x: lvl.boss.x, y: lvl.boss.y, w: 64, h: 56, dir: -1, hp: lvl.boss.hp, maxHp: lvl.boss.hp, dead: false, iframes: 0, wind: 0, atk: 90, x1: lvl.boss.x1, x2: lvl.boss.x2, aggro: false } : null;
     catPickups = { ...lvl.cat, w: 44, h: 36, given: false };
     camX = 0;
     particles = [];
@@ -599,18 +604,29 @@
     muzzleT = 6;
     SFX.shoot();
     updateHud();
+    const f = player.face;
+    const anchor = { x: player.x + player.w / 2 + f * 6, y: player.y + 17 };
+    let pitch = -0.07;
+    if (aim.mx !== null) {
+      const mdx = Math.abs(aim.mx + camX - anchor.x), mdy = aim.my - anchor.y;
+      pitch = Math.max(-1.05, Math.min(1.05, Math.atan2(mdy, Math.max(24, mdx))));
+    }
+    const pvx = Math.cos(pitch) * f, pvy = Math.sin(pitch);
+    const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35;
     bullets.push({
-      x: player.face === 1 ? player.x + player.w + 13 : player.x - 37,
-      y: player.y + 12, w: 12, h: 6, dir: player.face,
+      x: mx2 - 6, y: my2 - 3, w: 12, h: 6, dead: false,
+      vx: pvx * BULLET_SPEED, vy: pvy * BULLET_SPEED,
+      ang: Math.atan2(pvy, pvx),
     });
-    spawnParticles(player.face === 1 ? player.x + player.w + 36 : player.x - 36, player.y + 15, '#ffc93c', 6, 4, 1);
+    spawnParticles(mx2 + pvx * 6, my2 + pvy * 6, '#ffc93c', 6, 4, 1);
   }
 
   function updateBullets() {
     for (const b of bullets) {
       if (b.dead) continue;
-      b.x += b.dir * BULLET_SPEED;
-      if (b.x < -20 || b.x > lvl.width + 20) { b.dead = true; continue; }
+      b.x += b.vx;
+      b.y += b.vy;
+      if (b.x < -20 || b.x > lvl.width + 20 || b.y < -40 || b.y > H + 60) { b.dead = true; continue; }
       for (const e of enemies) {
         if (!e.dead && rectsHit(b, e)) {
           e.dead = true; b.dead = true;
@@ -719,6 +735,9 @@
     player.vy = Math.min(player.vy, MAX_FALL);
     if (keys.left) { player.vx -= MOVE; player.face = -1; }
     if (keys.right) { player.vx += MOVE; player.face = 1; }
+    if (aim.mx !== null) {
+      player.face = aim.mx + camX > player.x + player.w / 2 ? 1 : -1;
+    }
     if (!keys.left && !keys.right) player.vx *= FRICTION;
     player.vx = Math.max(-MAX_VX, Math.min(MAX_VX, player.vx));
     if (keys.jump && (player.onGround || coyote > 0)) {
@@ -788,19 +807,27 @@
         flash('БОСС!', 80);
       }
       if (boss.aggro) {
-        const sp = Math.abs(dx) > 260 ? 1.7 : 0.4;
+        const sp = boss.wind > 0 ? 0 : (Math.abs(dx) > 260 ? 1.7 : 0.4);
         boss.x += Math.sign(dx) * sp;
-      } else {
+      } else if (boss.wind === 0) {
         boss.x += boss.dir * 0.8;
         if (boss.x < boss.x1) { boss.x = boss.x1; boss.dir = 1; }
         if (boss.x + boss.w > boss.x2) { boss.x = boss.x2 - boss.w; boss.dir = -1; }
       }
       boss.x = Math.max(boss.x1, Math.min(boss.x2 - boss.w, boss.x));
-      boss.spit--;
-      if (boss.spit <= 0 && Math.abs(dx) < 780) {
-        boss.spit = 110;
-        fireballs.push({ x: boss.x + 25, y: boss.y + 18, w: 14, h: 14, dir: dx < 0 ? -1 : 1 });
-        SFX.bossRoar();
+      if (boss.wind > 0) {
+        boss.wind--;
+        if (boss.wind === 0) {
+          fireballs.push({ x: boss.x + 25, y: boss.y + 18, w: 14, h: 14, dir: dx < 0 ? -1 : 1 });
+          SFX.bossSpit();
+          boss.atk = 170;
+        }
+      } else {
+        boss.atk--;
+        if (boss.aggro && boss.atk <= 0 && Math.abs(dx) < 780) {
+          boss.wind = 55;
+          SFX.bossCharge();
+        }
       }
       if (rectsHit(body, boss, -4)) { onDeath('Босс тебя раздавил!'); return; }
     }
@@ -809,7 +836,16 @@
       if (fb.dead) continue;
       fb.x += fb.dir * 4.5;
       const fbr = { x: fb.x, y: fb.y, w: fb.w, h: fb.h };
-      if (rectsHit(body, fbr, -3)) { fb.dead = true; onDeath('Файербол!'); return; }
+      if (rectsHit(body, fbr, -3)) {
+        fb.dead = true;
+        spawnParticles(fb.x, fb.y, '#ff8c3d', 22, 7, 4);
+        spawnParticles(fb.x, fb.y, '#ffe08a', 12, 6, 3);
+        spawnParticles(fb.x, fb.y, '#ffc93c', 10, 5, 3);
+        shake = Math.max(shake, 8);
+        boom(0.25, 0.3);
+        onDeath('Файербол!');
+        return;
+      }
       for (const p of platforms) {
         if (rectsHit(fbr, p)) { fb.dead = true; spawnParticles(fb.x + 7, fb.y + 7, '#ff8c3d', 8, 4, 2); break; }
       }
@@ -993,6 +1029,11 @@
     ctx.lineCap = 'round';
     ctx.strokeStyle = outline;
     ctx.lineWidth = 2.5;
+    let pitch = -0.07;
+    if (state === 'play' && aim.mx !== null) {
+      const gdx = Math.abs(aim.mx + camX - (cx + f * 6)), gdy = aim.my - gy;
+      pitch = Math.max(-1.05, Math.min(1.05, Math.atan2(gdy, Math.max(24, gdx))));
+    }
 
     if (appearT > 0 && state === 'play') {
       const s = 0.15 + 0.85 * (1 - appearT / 24);
@@ -1045,10 +1086,11 @@
     ctx.arc(ex + 5.5, y + 10, 5.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    const pu = Math.sin(pitch) * 2.2;
     ctx.fillStyle = outline;
     ctx.beginPath();
-    ctx.arc(ex - 5.5 + f * 1.5, y + 10.5, 2.2, 0, Math.PI * 2);
-    ctx.arc(ex + 5.5 + f * 1.5, y + 10.5, 2.2, 0, Math.PI * 2);
+    ctx.arc(ex - 5.5 + f * 1.5, y + 10.5 + pu, 2.2, 0, Math.PI * 2);
+    ctx.arc(ex + 5.5 + f * 1.5, y + 10.5 + pu, 2.2, 0, Math.PI * 2);
     ctx.fill();
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -1061,7 +1103,7 @@
     ctx.save();
     ctx.translate(cx + f * 6, gy);
     ctx.scale(f, 1);
-    ctx.rotate(-0.07);
+    ctx.rotate(pitch);
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = outline;
@@ -1108,7 +1150,7 @@
     ctx.stroke();
 
     if (muzzleT > 0) {
-      const mx = cx + f * 41, my = gy - 2;
+      const mx = cx + f * 6 + f * 36 * Math.cos(pitch), my = gy + 36 * Math.sin(pitch);
       const k = muzzleT / 6;
       const fl = ctx.createRadialGradient(mx, my, 1, mx, my, 24 + 10 * k);
       fl.addColorStop(0, 'rgba(255,255,220,' + (0.95 * k).toFixed(2) + ')');
@@ -1369,6 +1411,32 @@
     ctx.closePath();
     ctx.fill();
 
+    if (boss && !boss.dead && boss.wind > 0) {
+      const fdir = player.x + 15 < boss.x + 32 ? -1 : 1;
+      const mlx = boss.x + 25, mly = boss.y + 18;
+      const mlyC = mly + 7;
+      let len = fdir === 1 ? lvl.width + 40 - (mlx + 7) : mlx + 40;
+      for (const p of platforms) {
+        if (mlyC + 7 > p.y && mlyC - 7 < p.y + p.h) {
+          if (fdir === 1 && p.x > mlx + 7) len = Math.min(len, p.x - mlx - 7);
+          if (fdir === -1 && p.x + p.w < mlx) len = Math.min(len, mlx - (p.x + p.w));
+        }
+      }
+      const pulse = 0.22 + 0.14 * Math.sin(time * 12);
+      ctx.fillStyle = 'rgba(255,50,50,' + pulse.toFixed(2) + ')';
+      if (fdir === 1) ctx.fillRect(mlx + 7, mlyC - 5, len, 10);
+      else ctx.fillRect(mlx - 7 - len, mlyC - 5, len, 10);
+      const prog = 1 - boss.wind / 55;
+      const cr = 5 + prog * 13;
+      const cg = ctx.createRadialGradient(mlx + 7, mlyC, 1, mlx + 7, mlyC, cr);
+      cg.addColorStop(0, 'rgba(255,225,130,' + (0.5 + prog * 0.45).toFixed(2) + ')');
+      cg.addColorStop(1, 'rgba(255,90,40,0)');
+      ctx.fillStyle = cg;
+      ctx.beginPath();
+      ctx.arc(mlx + 7, mlyC, cr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     if (boss && !boss.dead) {
       const flashW = boss.iframes > 0 && Math.floor(boss.iframes / 3) % 2 === 0;
       const bx = boss.x, by = boss.y + Math.sin(time * 3) * 3;
@@ -1508,7 +1576,13 @@
     ctx.globalAlpha = 1;
 
     ctx.fillStyle = '#2b3a55';
-    for (const b of bullets) ctx.fillRect(b.x, b.y, b.w, b.h);
+    for (const b of bullets) {
+      ctx.save();
+      ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+      ctx.rotate(b.ang || 0);
+      ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+      ctx.restore();
+    }
 
     ctx.restore();
   }
@@ -1581,6 +1655,11 @@
     if (['ArrowRight','KeyD'].includes(e.code)) keys.right = false;
   });
   cv.addEventListener('mousedown', fire);
+  cv.addEventListener('mousemove', e => {
+    const r = cv.getBoundingClientRect();
+    aim.mx = (e.clientX - r.left) * (cv.width / r.width);
+    aim.my = (e.clientY - r.top) * (cv.height / r.height);
+  });
 
   const isTouch = 'ontouchstart' in window;
   if (isTouch) document.body.classList.add('touch');
