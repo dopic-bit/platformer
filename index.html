@@ -491,7 +491,7 @@
   let levelIdx = 0;
   let score = 0;
   let camX = 0, time = 0, flashText = null, shake = 0, muzzleT = 0;
-  let deathT = 0, appearT = 0, saveT = 0, lastSafe = null;
+  let deathT = 0, appearT = 0, saveT = 0, safeT = 0, lastSafe = null;
   let angel = null;
   let particles = [];
   let splats = [];
@@ -525,6 +525,7 @@
     splats = [];
     appearT = 24;
     saveT = 0;
+    safeT = 0;
     angel = null;
     lastSafe = { x: lvl.spawn.x, y: lvl.spawn.y };
     updateHud();
@@ -553,6 +554,13 @@
     for (const e of enemies) {
       if (!e.dead && rectsHit(pr, e, -6)) { spot = { x: curCp.x, y: curCp.y }; break; }
     }
+    if (spot === lastSafe && boss && !boss.dead && Math.abs((boss.x + 32) - (spot.x + 15)) < 140) {
+      spot = { x: curCp.x, y: curCp.y };
+    }
+    for (const s of spikes) {
+      if (rectsHit(pr, s, -8)) { spot = { x: curCp.x, y: curCp.y }; break; }
+    }
+    safeT = 96;
     player.x = spot.x;
     player.y = spot.y;
     player.vx = 0;
@@ -608,8 +616,9 @@
     const anchor = { x: player.x + player.w / 2 + f * 6, y: player.y + 17 };
     let pitch = -0.07;
     if (aim.mx !== null) {
-      const mdx = Math.abs(aim.mx + camX - anchor.x), mdy = aim.my - anchor.y;
-      pitch = Math.max(-1.05, Math.min(1.05, Math.atan2(mdy, Math.max(24, mdx))));
+      const mdx = (aim.mx + camX - anchor.x) * player.face, mdy = aim.my - anchor.y;
+      pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(mdy, mdx)));
+      if (mdx < 0) pitch = 0;
     }
     const pvx = Math.cos(pitch) * f, pvy = Math.sin(pitch);
     const mx2 = anchor.x + pvx * 35, my2 = anchor.y + pvy * 35;
@@ -717,6 +726,7 @@
     muzzleT = Math.max(0, muzzleT - 1);
     appearT = Math.max(0, appearT - 1);
     saveT = Math.max(0, saveT - 1);
+    safeT = Math.max(0, safeT - 1);
     if (angel) {
       angel.t++;
       if (angel.t === 55 && !angel.sparkled) {
@@ -784,17 +794,21 @@
     if (player.y > H + 60) { onDeath('Упал в пропасть!'); return; }
 
     for (const s of spikes) {
-      if (rectsHit(body, s, 8)) { onDeath('Напоролся на шипы!'); return; }
+      if (safeT === 0 && rectsHit(body, s, 8)) { onDeath('Напоролся на шипы!'); return; }
     }
 
     updateBullets();
 
     for (const e of enemies) {
       if (e.dead) continue;
-      e.x += e.dir * ENEMY_SPEED;
-      if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
-      if (e.x + e.w > e.x2) { e.x = e.x2 - e.w; e.dir = -1; }
-      if (rectsHit(body, e, 2)) { onDeath('Враг тебя поймал!'); return; }
+      if (e.x2 - e.x1 > 80) {
+        e.x += e.dir * ENEMY_SPEED;
+        if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
+        if (e.x + e.w > e.x2) { e.x = e.x2 - e.w; e.dir = -1; }
+      } else {
+        e.dir = player.x + player.w / 2 > e.x + e.w / 2 ? 1 : -1;
+      }
+      if (safeT === 0 && rectsHit(body, e, 2)) { onDeath('Враг тебя поймал!'); return; }
     }
 
     if (boss && !boss.dead) {
@@ -818,7 +832,14 @@
       if (boss.wind > 0) {
         boss.wind--;
         if (boss.wind === 0) {
-          fireballs.push({ x: boss.x + 25, y: boss.y + 18, w: 14, h: 14, dir: dx < 0 ? -1 : 1 });
+          const mlx = boss.x + 25, mly = boss.y + 18;
+          const tdx = (player.x + player.w / 2) - (mlx + 7), tdy = (player.y + 17) - (mly + 7);
+          const dist = Math.hypot(tdx, tdy) || 1;
+          const sp = 3.8;
+          fireballs.push({
+            x: boss.x + 25, y: boss.y + 18, w: 14, h: 14, dead: false,
+            vx: tdx / dist * sp, vy: tdy / dist * sp,
+          });
           SFX.bossSpit();
           boss.atk = 170;
         }
@@ -829,14 +850,15 @@
           SFX.bossCharge();
         }
       }
-      if (rectsHit(body, boss, -4)) { onDeath('Босс тебя раздавил!'); return; }
+      if (safeT === 0 && rectsHit(body, boss, -4)) { onDeath('Босс тебя раздавил!'); return; }
     }
 
     for (const fb of fireballs) {
       if (fb.dead) continue;
-      fb.x += fb.dir * 4.5;
+      fb.x += fb.vx || fb.dir * 4.5;
+      fb.y += fb.vy || 0;
       const fbr = { x: fb.x, y: fb.y, w: fb.w, h: fb.h };
-      if (rectsHit(body, fbr, -3)) {
+      if (safeT === 0 && rectsHit(body, fbr, -3)) {
         fb.dead = true;
         spawnParticles(fb.x, fb.y, '#ff8c3d', 22, 7, 4);
         spawnParticles(fb.x, fb.y, '#ffe08a', 12, 6, 3);
@@ -852,6 +874,12 @@
       if (fb.x < -30 || fb.x > lvl.width + 30) fb.dead = true;
     }
     fireballs = fireballs.filter(fb => !fb.dead);
+
+    if (boss && !boss.dead && player.x + player.w > 4490) {
+      player.x = 4490 - player.w;
+      player.vx = Math.min(player.vx, 0);
+      flash('Убей босса!', 20);
+    }
 
     coins.forEach((c, i) => {
       if (collected[i]) return;
@@ -1031,9 +1059,11 @@
     ctx.lineWidth = 2.5;
     let pitch = -0.07;
     if (state === 'play' && aim.mx !== null) {
-      const gdx = Math.abs(aim.mx + camX - (cx + f * 6)), gdy = aim.my - gy;
-      pitch = Math.max(-1.05, Math.min(1.05, Math.atan2(gdy, Math.max(24, gdx))));
+      const gdx = (aim.mx + camX - (cx + f * 6)) * f, gdy = aim.my - gy;
+      pitch = Math.max(-1.45, Math.min(1.45, Math.atan2(gdy, gdx)));
+      if (gdx < 0) pitch = 0;
     }
+    if (safeT > 0 && Math.floor(safeT / 4) % 2 === 0) ctx.globalAlpha = 0.5;
 
     if (appearT > 0 && state === 'play') {
       const s = 0.15 + 0.85 * (1 - appearT / 24);
@@ -1134,20 +1164,32 @@
     ctx.moveTo(1, 6);
     ctx.lineTo(-0.5, 8);
     ctx.stroke();
-    ctx.restore();
 
     ctx.strokeStyle = outline;
     ctx.lineWidth = 8;
     ctx.beginPath();
-    ctx.moveTo(cx + f * 9, gy + 7);
-    ctx.lineTo(cx + f * 22, gy + 5);
+    ctx.moveTo(3, 7);
+    ctx.lineTo(16, 5);
     ctx.stroke();
     ctx.strokeStyle = dark;
     ctx.lineWidth = 4.5;
     ctx.beginPath();
-    ctx.moveTo(cx + f * 9, gy + 7);
-    ctx.lineTo(cx + f * 22, gy + 5);
+    ctx.moveTo(3, 7);
+    ctx.lineTo(16, 5);
     ctx.stroke();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(-4, 10);
+    ctx.lineTo(19, 4);
+    ctx.stroke();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(-4, 10);
+    ctx.lineTo(19, 4);
+    ctx.stroke();
+    ctx.restore();
 
     if (muzzleT > 0) {
       const mx = cx + f * 6 + f * 36 * Math.cos(pitch), my = gy + 36 * Math.sin(pitch);
@@ -1412,28 +1454,34 @@
     ctx.fill();
 
     if (boss && !boss.dead && boss.wind > 0) {
-      const fdir = player.x + 15 < boss.x + 32 ? -1 : 1;
       const mlx = boss.x + 25, mly = boss.y + 18;
-      const mlyC = mly + 7;
-      let len = fdir === 1 ? lvl.width + 40 - (mlx + 7) : mlx + 40;
-      for (const p of platforms) {
-        if (mlyC + 7 > p.y && mlyC - 7 < p.y + p.h) {
-          if (fdir === 1 && p.x > mlx + 7) len = Math.min(len, p.x - mlx - 7);
-          if (fdir === -1 && p.x + p.w < mlx) len = Math.min(len, mlx - (p.x + p.w));
+      const tdx = (player.x + player.w / 2) - (mlx + 7), tdy = (player.y + 17) - (mly + 7);
+      const dist = Math.hypot(tdx, tdy) || 1;
+      const ux = tdx / dist, uy = tdy / dist;
+      let len = 900;
+      for (let s = 16; s < 900; s += 8) {
+        const px = mlx + 7 + ux * s, py = mly + 7 + uy * s;
+        let blocked = false;
+        for (const p of platforms) {
+          if (px >= p.x && px <= p.x + p.w && py >= p.y && py <= p.y + p.h) { blocked = true; break; }
         }
+        if (blocked) { len = s; break; }
       }
       const pulse = 0.22 + 0.14 * Math.sin(time * 12);
-      ctx.fillStyle = 'rgba(255,50,50,' + pulse.toFixed(2) + ')';
-      if (fdir === 1) ctx.fillRect(mlx + 7, mlyC - 5, len, 10);
-      else ctx.fillRect(mlx - 7 - len, mlyC - 5, len, 10);
+      ctx.strokeStyle = 'rgba(255,50,50,' + pulse.toFixed(2) + ')';
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.moveTo(mlx + 7, mly + 7);
+      ctx.lineTo(mlx + 7 + ux * len, mly + 7 + uy * len);
+      ctx.stroke();
       const prog = 1 - boss.wind / 55;
       const cr = 5 + prog * 13;
-      const cg = ctx.createRadialGradient(mlx + 7, mlyC, 1, mlx + 7, mlyC, cr);
+      const cg = ctx.createRadialGradient(mlx + 7, mly + 7, 1, mlx + 7, mly + 7, cr);
       cg.addColorStop(0, 'rgba(255,225,130,' + (0.5 + prog * 0.45).toFixed(2) + ')');
       cg.addColorStop(1, 'rgba(255,90,40,0)');
       ctx.fillStyle = cg;
       ctx.beginPath();
-      ctx.arc(mlx + 7, mlyC, cr, 0, Math.PI * 2);
+      ctx.arc(mlx + 7, mly + 7, cr, 0, Math.PI * 2);
       ctx.fill();
     }
 
