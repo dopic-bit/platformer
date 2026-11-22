@@ -75,6 +75,7 @@
     background: #ff6b6b; color: #fff; font: 700 14px Segoe UI, system-ui, sans-serif; cursor: pointer;
   }
   .tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .tabs.hidden { display: none; }
   .tabs.sub { margin-top: 6px; }
   .tab {
     padding: 7px 14px; border: none; border-radius: 999px;
@@ -254,6 +255,7 @@
       <button id="admTotem">🐾 Тотем</button>
       <button id="admKillBoss">💀 Убить босса</button>
       <button id="admCoins">💰 Монеты</button>
+      <button id="admBank">💎 +1000 в банк</button>
     </div>
   </div>
 </div>
@@ -2146,6 +2148,12 @@
     score = coins.length;
     updateHud();
     flash('Монеты собраны', 40);
+  };
+  document.getElementById('admBank').onclick = () => {
+    bank += 1000;
+    saveProg();
+    updateHud();
+    flash('+1000 💰', 40);
   };
 
   const isTouch = 'ontouchstart' in window;
