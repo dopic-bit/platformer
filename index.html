@@ -1222,18 +1222,18 @@
   }
   function impAI(e) {
     if (e.vy === undefined) e.vy = 0;
-    e.vy += 0.42;
     const px = player.x + player.w / 2;
     e.dir = px > e.x + e.w / 2 ? 1 : -1;
     e.x += e.dir * 1.15;
     e.x = Math.max(10, Math.min(lvl.width - e.w - 10, e.x));
+    e.vy += 0.5;
     e.y += e.vy;
     for (const pl of platforms) {
       if (e.vy >= 0 && e.x + e.w > pl.x && e.x < pl.x + pl.w) {
         const bot = e.y + e.h;
         if (bot >= pl.y && bot <= pl.y + Math.max(24, e.vy + 8)) {
           e.y = pl.y - e.h;
-          e.vy = -(5.6 + Math.random() * 3);
+          e.vy = 0;
           break;
         }
       }
@@ -1688,7 +1688,10 @@
         if (enemies.filter(e2 => !e2.dead).length < 20) {
           const n2 = 1 + (Math.random() < 0.35 ? 1 : 0);
           for (let i = 0; i < n2; i++) {
-            enemies.push({ x: 80 + Math.random() * 1740, x1: 0, x2: 1840, y: -40, w: 30, h: 30, imp: true, dir: 1, dead: false, ph: Math.random() * 6, vy: 0 });
+            const side = Math.random() < 0.5 ? -1 : 1;
+            let sx = player.x + 15 + side * (W / 2 + 70 + Math.random() * 150);
+            sx = Math.max(10, Math.min(lvl.width - 40, sx));
+            enemies.push({ x: sx, x1: 0, x2: 1840, y: 410, w: 30, h: 30, imp: true, dir: side === -1 ? 1 : -1, dead: false, ph: Math.random() * 6, vy: 0 });
           }
         }
       }
