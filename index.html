@@ -981,7 +981,7 @@
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
   let curW = 'shotgun', fireCd = 0, slashFx = null;
   let wowned = {}, wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 };
-  let mgHeat = 0, mgHot = false, mgHand = 0;
+  let mgHeat = 0, mgHot = false, mgHand = 0, mgLastHud = -1;
   try { wowned = JSON.parse(localStorage.getItem('pf_wowned') || '{}') || {}; } catch (e) { wowned = {}; }
   try { const ws = JSON.parse(localStorage.getItem('pf_wammo') || 'null'); if (ws && typeof ws === 'object') { for (const k in wammo) if (typeof ws[k] === 'number' && ws[k] > 0) wammo[k] = Math.floor(ws[k]); } } catch (e) {}
   try { const oz = parseInt(localStorage.getItem('pf_wauzi') || '0', 10) || 0; if (oz > 0 && wammo.uzi === 0) wammo.uzi = oz; } catch (e) {}
@@ -1148,6 +1148,64 @@
     updateHud();
   }
 
+  function katanaSlash() {
+    const kcx = player.x + player.w / 2, kcy = player.y + 19;
+    let kang = player.face > 0 ? 0 : Math.PI;
+    if (aim.mx !== null) kang = Math.atan2(aim.my - kcy, aim.mx + camX - kcx);
+    player.face = Math.cos(kang) >= 0 ? 1 : -1;
+    player.vx = player.vx * 0.25 + Math.cos(kang) * 6.5;
+    if (Math.sin(kang) < -0.35) player.vy = Math.min(player.vy, -3.4);
+    slashFx = { t: 13, ang: kang, r: 78 };
+    SFX.slash();
+    shake = Math.max(shake, 4);
+    const kr = { x: kcx + Math.cos(kang) * 34 - 64, y: kcy + Math.sin(kang) * 34 - 54, w: 128, h: 108 };
+    for (const e of enemies) {
+      if (!e.dead && rectsHit(kr, e)) {
+        e.dead = true;
+        spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 18, 6, 3.5, true);
+        spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 9, 5, 3, true);
+        shake = Math.max(shake, 5);
+        SFX.squish();
+      }
+    }
+    if (boss && !boss.dead && boss.iframes <= 0) {
+      boss.hp -= 2;
+      boss.iframes = 12;
+      SFX.bossHit();
+      shake = Math.max(shake, 6);
+      spawnParticles(kcx, kcy, '#ff5b5b', 10, 5, 3);
+      if (boss.hp <= 0) {
+        boss.dead = true;
+        shake = 14;
+        SFX.bossDie();
+        bank += 250; saveProg(); updateHud();
+        flash('Босс побеждён!', 90);
+        spawnParticles(boss.x + 32, boss.y + 28, '#ff5b5b', 40, 10, 5);
+      } else flash('Босс: ' + boss.hp + ' hp', 40);
+    }
+    if (mega && !mega.dead && !mega.dying && mega.phase === 'fight' && mega.block === 0) {
+      for (const pt of mega.parts) {
+        if (pt.dead) continue;
+        if (rectsHit(kr, { x: mega.x + pt.ox, y: 440 + pt.oy, w: 64, h: 52 })) {
+          pt.hp -= 2;
+          pt.flash = 12;
+          SFX.bossHit();
+          shake = Math.max(shake, 6);
+          spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 10, 5, 3);
+          if (pt.hp <= 0) {
+            pt.dead = true;
+            bank += 40; saveProg(); updateHud();
+            SFX.bossDie();
+            shake = 12;
+            flash(BOSS_SKINS[pt.theme].name + ': ЧАСТЬ СНЯТА!', 110);
+            spawnParticles(mega.x + pt.ox + 32, 440 + pt.oy + 30, BOSS_SKINS[pt.theme].body, 26, 8, 4);
+          }
+          break;
+        }
+      }
+    }
+  }
+
   function fire() {
     if (state !== 'play') return;
     if (curW === 'katana') { if (fireCd <= 0) { katanaSlash(); fireCd = 24; } return; }
@@ -1167,7 +1225,8 @@
       fireCd = (W2.cd || 6) + W2.burst * W2.bgap;
     }
     if (isMini) {
-      mgHeat = Math.min(100, mgHeat + 1.67 * burstN);
+      mgHeat = Math.min(100, mgHeat + 3.5 * burstN);
+      mgLastHud = -1;
       if (mgHeat >= 100 && !mgHot) { mgHot = true; flash('Миниган раскалился! Жди ♨️', 60); }
     }
     muzzleT = 6;
@@ -1398,7 +1457,16 @@
     shake = Math.max(0, shake - 0.5);
     muzzleT = Math.max(0, muzzleT - 1);
     if (fireCd > 0) fireCd--;
-    if (curW === 'minigun') { mgHeat = Math.max(0, mgHeat - (mgHot ? 0.9 : 0.55)); if (mgHot && mgHeat <= 30) mgHot = false; }
+    if (curW === 'minigun') {
+      mgHeat = Math.max(0, mgHeat - (mgHot ? 0.12 : 0.15));
+      if (mgHot && mgHeat <= 30) mgHot = false;
+      const hq = Math.round(mgHeat);
+      if (hq !== mgLastHud) {
+        mgLastHud = hq;
+        const Wm = WEAPONS.find(w2 => w2.id === 'minigun');
+        ammoEl.textContent = Wm.emoji + ' ' + Wm.name + ' ' + (infAmmo ? '∞' : wammo.minigun) + (mgHot ? ' ♨️ ПЕРЕГРЕВ!' : ' ♨️' + hq + '%');
+      }
+    }
     else if (mgHeat > 0) { mgHeat = Math.max(0, mgHeat - 1.2); if (mgHeat <= 0) mgHot = false; }
     if (slashFx) { slashFx.t--; if (slashFx.t <= 0) slashFx = null; }
     appearT = Math.max(0, appearT - 1);
@@ -3170,12 +3238,13 @@
       ctx.translate(scx, scy);
       ctx.rotate(slashFx.ang);
       const sp = 1 - slashFx.t / 13;
+      const rr = slashFx.r || 52;
       ctx.strokeStyle = 'rgba(255,255,255,' + (0.9 - sp * 0.6).toFixed(2) + ')';
-      ctx.lineWidth = 4;
-      ctx.beginPath(); ctx.arc(0, 0, 52, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
+      ctx.lineWidth = slashFx.r ? 6 : 4;
+      ctx.beginPath(); ctx.arc(0, 0, rr, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
       ctx.strokeStyle = 'rgba(255,220,120,.6)';
       ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(0, 0, 60, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0, 0, rr + 9, -0.9 + sp * 1.6, 0.6 + sp * 1.6); ctx.stroke();
       ctx.restore();
     }
     ctx.fillStyle = '#2b3a55';
@@ -4518,7 +4587,7 @@
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
     bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
-    wowned = {}; wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 }; mgHeat = 0; mgHot = false; curW = 'shotgun';
+    wowned = {}; wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 }; mgHeat = 0; mgHot = false; mgLastHud = -1; curW = 'shotgun';
     try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); localStorage.removeItem('pf_wowned'); localStorage.setItem('pf_wammo', JSON.stringify(wammo)); } catch (e) {}
     setMuted(false);
     setShowAim(true);
