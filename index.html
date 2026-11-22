@@ -2150,6 +2150,86 @@
     ctx.lineWidth = 2;
     ctx.lineJoin = 'round';
     ctx.strokeStyle = outline;
+    if (curW === 'uzi') {
+      ctx.fillStyle = '#3a3f47';
+      roundRect(-3, -4, 16, 10, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(13, -2.5, 14, 4.5, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#1a1a1a';
+      roundRect(26, -3, 3.5, 6, 1.5);
+      ctx.fill();
+      ctx.fillStyle = '#23262b';
+      roundRect(2, 5, 6.5, 13, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#5c4a2f';
+      roundRect(-2.5, 6, 5.5, 8, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#ffd76e';
+      roundRect(-1, -6, 7, 2, 1);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.4)';
+      roundRect(6, -1, 4, 3, 1);
+      ctx.fill();
+    } else if (curW === 'launcher') {
+      ctx.fillStyle = '#4a5d3a';
+      roundRect(-6, -5, 34, 11, 5);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#38482c';
+      roundRect(-6, -5, 34, 4, 4);
+      ctx.fill();
+      ctx.fillStyle = '#b3402f';
+      roundRect(8, -6, 5, 13, 2);
+      ctx.fill(); ctx.stroke();
+      roundRect(22, -6, 5, 13, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#23262b';
+      roundRect(27, -4.5, 7, 10, 3);
+      ctx.fill(); ctx.stroke();
+      roundRect(-10, -2, 8, 6, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#5c4a2f';
+      roundRect(-3, 6, 5.5, 8, 2);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#fdf6da';
+      roundRect(-8.5, -0.5, 3, 2, 1);
+      ctx.fill();
+    } else if (curW === 'katana') {
+      ctx.save();
+      ctx.rotate(-0.55);
+      ctx.fillStyle = '#3a2a4a';
+      roundRect(-7, -1.8, 13, 3.6, 1.8);
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = '#c9a23f';
+      ctx.lineWidth = 1.4;
+      for (const wd of [-4, 0, 4]) {
+        ctx.beginPath();
+        ctx.moveTo(wd, -1.4); ctx.lineTo(wd + 2, 1.4);
+        ctx.moveTo(wd + 2, -1.4); ctx.lineTo(wd, 1.4);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = outline;
+      ctx.lineWidth = 2;
+      ctx.fillStyle = '#c9a23f';
+      roundRect(6, -3.5, 2.5, 7.5, 1);
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#dfe6ee';
+      ctx.beginPath();
+      ctx.moveTo(8.5, -2.2);
+      ctx.lineTo(34, -4.2);
+      ctx.lineTo(35.5, -2.4);
+      ctx.lineTo(8.5, -0.2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(30,40,60,.8)';
+      ctx.lineWidth = 1.4;
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(10, -2.6); ctx.lineTo(32, -4); ctx.stroke();
+      ctx.restore();
+    } else {
     ctx.fillStyle = '#8B5A2B';
     ctx.beginPath();
     ctx.moveTo(-1, -2);
@@ -2177,6 +2257,7 @@
     ctx.moveTo(1, 6);
     ctx.lineTo(-0.5, 8);
     ctx.stroke();
+    }
 
     ctx.strokeStyle = outline;
     ctx.lineWidth = 8;
@@ -4047,9 +4128,9 @@
     { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 150 },
   ];
   const WEAPON_SHOP = [
-    { kind: 'gun', wid: 'uzi', emoji: '🔥', name: 'Узи', desc: 'скорострельный · свои патроны', price: 1000 },
-    { kind: 'gun', wid: 'launcher', emoji: '💣', name: 'Гранатомёт', desc: 'взрыв по площади · свои патроны', price: 2000 },
-    { kind: 'gun', wid: 'katana', emoji: '⚔️', name: 'Катана', desc: 'ближний бой · патроны не нужны', price: 1500 },
+    { kind: 'gun', wid: 'uzi', emoji: '🔥', name: 'Узи', desc: 'скорострельный · свои патроны', price: 1000, needCh: 2 },
+    { kind: 'gun', wid: 'launcher', emoji: '💣', name: 'Гранатомёт', desc: 'взрыв по площади · свои патроны', price: 2000, needCh: 4 },
+    { kind: 'gun', wid: 'katana', emoji: '⚔️', name: 'Катана', desc: 'ближний бой · патроны не нужны', price: 1500, needCh: 6 },
   ];
   const COSMETICS = [
     { id: 'hat', cat: 'head', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
@@ -4151,6 +4232,14 @@
       row.appendChild(info);
       const btn = document.createElement('button');
       if (it.kind === 'gun') {
+        if (unlocked < it.needCh * 10 - 9) {
+          info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">🔒 откроется в главе ' + it.needCh + ' · ' + it.desc + '</span>';
+          btn.textContent = '🔒 Глава ' + it.needCh;
+          btn.disabled = true;
+          row.appendChild(btn);
+          list.appendChild(row);
+          return;
+        }
         if (!wowned[it.wid]) {
           btn.textContent = '💰 ' + it.price;
           btn.disabled = bank < it.price;
