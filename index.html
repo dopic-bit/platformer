@@ -989,6 +989,7 @@
   let angel = null;
   let particles = [];
   let splats = [];
+  let gibs = [];
 
   let player, lvl, th, platforms, coins, spikes, flag, collected, enemies, checkpoints, catPickups, ammoBoxes, bullets;
   let totem = false, ammo = 0, curCp = null, cpSnap = null;
@@ -1075,6 +1076,7 @@
     camX = 0;
     particles = [];
     splats = [];
+    gibs = [];
     appearT = 24;
     saveT = 0;
     safeT = 0;
@@ -1177,6 +1179,7 @@
     for (const e of enemies) {
       if (!e.dead && rectsHit(kr, e)) {
         e.dead = true;
+        spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 10);
         spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 18, 6, 3.5, true);
         spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 9, 5, 3, true);
         shake = Math.max(shake, 5);
@@ -1298,12 +1301,14 @@
           if (b.pierce > 0) {
             b.pierce--;
             SFX.squish();
+            spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 7);
             spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 12, 5, 3, true);
             continue;
           }
           b.dead = true;
           shake = Math.max(shake, 3);
           SFX.squish();
+          spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 9);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
           break;
@@ -1383,6 +1388,7 @@
       for (const e of enemies) {
         if (!e.dead && rectsHit(er, e)) {
           e.dead = true;
+          spawnGibs(e.x + e.w / 2, e.y + 10, enemyGibCols(), 11);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#b3161b', 16, 6, 3.5, true);
           spawnParticles(e.x + e.w / 2, e.y + 6, '#7a0c0c', 8, 5, 3, true);
         }
@@ -1440,6 +1446,29 @@
       }
     }
     particles = particles.filter(p => p.life > 0);
+    for (const g of gibs) {
+      if (g.settled) { g.life--; continue; }
+      g.vy += 0.3;
+      const py = g.y;
+      g.x += g.vx;
+      g.y += g.vy;
+      g.rot += g.vr;
+      g.vx *= 0.98;
+      let landed = false;
+      for (const pl of platforms) {
+        if (g.x >= pl.x && g.x <= pl.x + pl.w && py <= pl.y && g.y >= pl.y) {
+          g.y = pl.y - 2;
+          landed = true;
+          break;
+        }
+      }
+      if (landed) {
+        if (g.bounces < 1) { g.bounces++; g.vy = -Math.abs(g.vy) * 0.35; g.vx *= 0.5; g.vr *= 0.4; }
+        else { g.settled = true; g.vr = 0; g.vx = 0; g.life = Math.min(g.life, 240); }
+      }
+      if (g.settled) g.life--;
+    }
+    gibs = gibs.filter(g => g.life > 0);
   }
 
   function addSplat(x, y) {
@@ -1464,6 +1493,35 @@
     }
   }
 
+  function shade(c, f) {
+    const m = c.replace('#', '');
+    const r = parseInt(m.slice(0, 2), 16), g = parseInt(m.slice(2, 4), 16), b = parseInt(m.slice(4, 6), 16);
+    const q = v => Math.max(0, Math.min(255, Math.round(v * f)));
+    return 'rgb(' + q(r) + ',' + q(g) + ',' + q(b) + ')';
+  }
+  function enemyGibCols() {
+    const c = ENEMY_LOOK[lvl.theme];
+    return [c, shade(c, 0.6), shade(c, 1.25)];
+  }
+  function spawnGibs(x, y, colors, n) {
+    for (let i = 0; i < n; i++) {
+      gibs.push({
+        x: x + (Math.random() - 0.5) * 16,
+        y: y + (Math.random() - 0.5) * 10,
+        vx: (Math.random() - 0.5) * 7,
+        vy: -(Math.random() * 5 + 2),
+        w: 3 + Math.random() * 6,
+        h: 2.5 + Math.random() * 5,
+        rot: Math.random() * Math.PI * 2,
+        vr: (Math.random() - 0.5) * 0.5,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        life: 200 + Math.random() * 80,
+        settled: false,
+        bounces: 0,
+      });
+    }
+    if (gibs.length > 220) gibs.splice(0, gibs.length - 220);
+  }
   function update() {
     time += 1 / 60;
     playT += 1 / 60;
@@ -2883,6 +2941,21 @@
         ctx.fill();
       }
     }
+
+    for (const g of gibs) {
+      const al = g.life < 60 ? Math.max(0, g.life / 60) : 1;
+      ctx.save();
+      ctx.globalAlpha = al;
+      ctx.translate(g.x, g.y - g.h / 2);
+      ctx.rotate(g.rot);
+      ctx.fillStyle = g.color;
+      ctx.fillRect(-g.w / 2, -g.h / 2, g.w, g.h);
+      ctx.strokeStyle = 'rgba(0,0,0,.4)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(-g.w / 2, -g.h / 2, g.w, g.h);
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
 
     for (const box of ammoBoxes) {
       if (box.taken) continue;
