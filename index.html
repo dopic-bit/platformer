@@ -593,13 +593,15 @@
     totem = false;
     updateHud();
     let spot = lastSafe || curCp;
-    const pr = { x: spot.x, y: spot.y, w: PLAYER_W, h: PLAYER_H };
-    let blocked = false;
     for (const s of spikes) {
-      if (rectsHit(pr, s, -8)) { blocked = true; break; }
+      if (rectsHit({ x: spot.x, y: spot.y, w: PLAYER_W, h: PLAYER_H }, s, -8)) {
+        if (spot.x + PLAYER_W / 2 < s.x + s.w / 2) spot.x = s.x - PLAYER_W - 8;
+        else spot.x = s.x + s.w + 8;
+      }
     }
-    if (boss && !boss.dead && Math.abs((boss.x + 32) - (spot.x + 15)) < 140) blocked = true;
-    if (blocked) spot = { x: curCp.x, y: curCp.y };
+    if (boss && !boss.dead && Math.abs((boss.x + 32) - (spot.x + 15)) < 140) {
+      spot = { x: curCp.x, y: curCp.y };
+    }
     safeT = 96;
     player.x = spot.x;
     player.y = spot.y;
@@ -1761,8 +1763,8 @@
   cv.addEventListener('mousedown', fire);
   window.addEventListener('mousemove', e => {
     const r = cv.getBoundingClientRect();
-    aim.mx = (e.clientX - r.left) * (cv.width / r.width);
-    aim.my = (e.clientY - r.top) * (cv.height / r.height);
+    aim.mx = (e.clientX - r.left) / r.width * W;
+    aim.my = (e.clientY - r.top) / r.height * H;
   });
 
   const adminPanel = document.getElementById('admin');
