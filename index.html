@@ -60,7 +60,9 @@
   #hint {
     position: absolute; bottom: 12px; width: 100%; text-align: center;
     color: #9aa8bf; font-size: 13px; pointer-events: none;
+    display: none;
   }
+  body.showHint #hint { display: block; }
   #touch { position: absolute; inset: 0; display: none; }
   #touch div {
     position: absolute; bottom: 16px; width: 72px; height: 72px; border-radius: 50%;
@@ -155,7 +157,7 @@
       <button class="mbtn" id="menuPlay">▶ Играть</button>
       <button class="mbtn" id="menuShop">🛒 Магазин</button>
       <button class="mbtn" id="menuSettings">⚙ Настройки</button>
-      <div class="mfoot">Пробел — быстрый старт · M — звук · ~ — админ-панель</div>
+      <div class="mfoot">Пробел — быстрый старт · H — управление · M — звук · ~ — админ-панель</div>
     </div>
     <div id="menuPlayScr" class="mscr hidden">
       <div class="mhead">▶ ИГРАТЬ</div>
@@ -653,7 +655,7 @@
     bullets = [];
     fireballs = [];
     boss = lvl.boss ? { x: lvl.boss.x, y: lvl.boss.y, w: 64, h: 56, dir: -1, hp: lvl.boss.hp, maxHp: lvl.boss.hp, dead: false, iframes: 0, wind: 0, atk: 90, x1: lvl.boss.x1, x2: lvl.boss.x2, aggro: false } : null;
-    maxVx = MAX_VX * (hasIt('boots') ? 1.1 : 1);
+    maxVx = MAX_VX;
     ammo += hasIt('ammo5') ? 5 : 0;
     catPickups = { ...lvl.cat, w: 44, h: 36, given: false };
     camX = 0;
@@ -924,6 +926,10 @@
     }
     if (player.onGround) {
       lastSafe = { x: player.x, y: player.y };
+    }
+    if (hasIt('trail') && Math.abs(player.vx) > 0.8) {
+      const hue = Math.floor(time * 140) % 360;
+      spawnParticles(player.x + player.w / 2, player.y + 15, 'hsl(' + hue + ',95%,60%)', 1, 1.5, 0.6);
     }
     coyote = player.onGround ? 7 : Math.max(0, coyote - 1);
 
@@ -1245,6 +1251,33 @@
     ctx.ellipse(cx - 7, y + 8, 6, 3.5, -0.4, 0, Math.PI * 2);
     ctx.fill();
 
+    if (hasIt('hat')) {
+      ctx.fillStyle = '#ffcf3f';
+      ctx.beginPath();
+      ctx.ellipse(cx, y + 2.5, 16, 4.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx, y + 2.5, 9, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    if (hasIt('crown') && !hasIt('hat')) {
+      ctx.fillStyle = '#ffcf3f';
+      ctx.beginPath();
+      ctx.moveTo(cx - 12, y + 3);
+      ctx.lineTo(cx - 12, y - 6);
+      ctx.lineTo(cx - 6, y - 1);
+      ctx.lineTo(cx, y - 8);
+      ctx.lineTo(cx + 6, y - 1);
+      ctx.lineTo(cx + 12, y - 6);
+      ctx.lineTo(cx + 12, y + 3);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+
     const ex = cx + f * 3;
     ctx.fillStyle = '#fff';
     ctx.strokeStyle = outline;
@@ -1270,6 +1303,16 @@
     ctx.moveTo(ex + 2, y + 1.5);
     ctx.lineTo(ex + 9.5, y + 2.5);
     ctx.stroke();
+
+    if (hasIt('glasses')) {
+      ctx.fillStyle = '#15151d';
+      roundRect(ex - 11.5, y + 5.5, 23, 9, 4);
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)';
+      ctx.fillRect(ex - 8, y + 7, 5, 2);
+      ctx.fillRect(ex + 3, y + 7, 5, 2);
+    }
 
     ctx.save();
     ctx.translate(cx + f * 6, gy);
@@ -1865,6 +1908,7 @@
     }
     if (e.code === 'Escape' && state === 'play') toMenu();
     if (['KeyX','KeyF'].includes(e.code)) fire();
+    if (e.code === 'KeyH') document.body.classList.toggle('showHint');
     if (e.code === 'KeyE') tryPet();
     if (e.code === 'KeyR') restart();
     if (e.code === 'Backquote') adminPanel.classList.toggle('hidden');
@@ -1884,10 +1928,15 @@
   const menuEmoji = { meadow: '🌱', desert: '🏜', snow: '❄️', volcano: '🌋', night: '🌃', ocean: '🌊', swamp: '🐊', space: '🚀' };
   const menuName = { meadow: 'Луг', desert: 'Пустыня', snow: 'Снега', volcano: 'Вулкан', night: 'Ночь', ocean: 'Океан', swamp: 'Болото', space: 'Космос' };
   const SHOP = [
-    { id: 'ammo5', emoji: '🔫', name: '+5 патронов', desc: '+5 дроби на каждом уровне', price: 30 },
-    { id: 'totem2', emoji: '🐾', name: 'Двойной тотем', desc: 'тотем спасает два раза', price: 50 },
-    { id: 'boots', emoji: '👟', name: 'Тапки скорости', desc: '+10% к макс. скорости', price: 40 },
-    { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 60 },
+    { id: 'ammo5', emoji: '🔫', name: '+5 патронов', desc: '+5 дроби на каждом уровне', price: 75 },
+    { id: 'totem2', emoji: '🐾', name: 'Двойной тотем', desc: 'тотем спасает два раза', price: 150 },
+    { id: 'coin2', emoji: '🪙', name: 'Двойная монета', desc: 'каждая монета даёт в банк ×2', price: 150 },
+  ];
+  const COSMETICS = [
+    { id: 'hat', emoji: '🎩', name: 'Золотая шляпа', desc: 'шик золотого старателя', price: 1000 },
+    { id: 'trail', emoji: '🌈', name: 'Радужный след', desc: 'персонаж оставляет радугу', price: 1500 },
+    { id: 'glasses', emoji: '🕶', name: 'Стильные очки', desc: 'бандит с прищуром', price: 1800 },
+    { id: 'crown', emoji: '👑', name: 'Корона', desc: 'для королей платформеров', price: 2500 },
   ];
   function showMenuScr(s) {
     for (const [id, name] of [['menuRoot', 'root'], ['menuPlayScr', 'play'], ['menuShopScr', 'shop'], ['menuSetScr', 'settings']]) {
@@ -1914,6 +1963,11 @@
   function renderShop() {
     const list = document.getElementById('shopList');
     list.innerHTML = '';
+    const head1 = document.createElement('div');
+    head1.className = 'mhead';
+    head1.style.fontSize = '16px';
+    head1.textContent = '⚙ УЛУЧШЕНИЯ';
+    list.appendChild(head1);
     SHOP.forEach(it => {
       const row = document.createElement('div');
       row.className = 'shopitem';
@@ -1940,8 +1994,40 @@
       row.appendChild(btn);
       list.appendChild(row);
     });
+    const head2 = document.createElement('div');
+    head2.className = 'mhead';
+    head2.style.fontSize = '16px';
+    head2.style.marginTop = '10px';
+    head2.textContent = '👒 КОСМЕТИКА';
+    list.appendChild(head2);
+    COSMETICS.forEach(it => {
+      const row = document.createElement('div');
+      row.className = 'shopitem';
+      const info = document.createElement('div');
+      info.innerHTML = '<b>' + it.emoji + ' ' + it.name + '</b><span class="desc">' + it.desc + '</span>';
+      row.appendChild(info);
+      const btn = document.createElement('button');
+      if (owned[it.id]) {
+        row.classList.add('owned');
+        btn.textContent = '✓ Куплено';
+        btn.disabled = true;
+      } else {
+        btn.textContent = '💰 ' + it.price;
+        btn.disabled = bank < it.price;
+        btn.onclick = () => {
+          if (bank < it.price) return;
+          bank -= it.price;
+          owned[it.id] = true;
+          saveProg();
+          renderShop();
+        };
+      }
+      row.appendChild(btn);
+      list.appendChild(row);
+    });
     document.getElementById('bankVal2').textContent = bank;
   }
+
   function setMuted(v) {
     muted = v;
     try { localStorage.setItem('pf_muted', v ? '1' : '0'); } catch (e) {}
