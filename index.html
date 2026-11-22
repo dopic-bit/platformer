@@ -294,6 +294,7 @@
     </div>
     <div class="row">
       <button id="admTotem">🐾 Тотем</button>
+      <button id="admHell">😈 В ад</button>
       <button id="admKillBoss">💀 Убить босса</button>
       <button id="admCoins">💰 Монеты</button>
       <button id="admBank">💎 +1000 в банк</button>
@@ -435,6 +436,14 @@
       sun: '#d8d8e8',
       groundBody: '#3d3768', groundTop: '#5d56a0', blockBody: '#4d3d70', blockTop: '#7d6bbf',
       dot: 'rgba(255,255,255,.15)',
+    },
+    hell: {
+      skyTop: '#160404', skyBottom: '#5c1410',
+      hillFar: '#3a0f0d', hillNear: '#61181a',
+      cloud: 'rgba(255,120,40,.12)',
+      sun: '#ff5a2a',
+      groundBody: '#380d0a', groundTop: '#8a2a1a', blockBody: '#4a1512', blockTop: '#7a2e1e',
+      dot: 'rgba(255,120,60,.25)',
     },
   };
 
@@ -813,7 +822,19 @@
           const lv = JSON.parse(JSON.stringify(HAND[7]));
           lv.boss.hp = 24;
           list.push(lv);
-        } else list.push(genLevel(ci, si));
+        } else {
+          const gv = genLevel(ci, si);
+          if (ci === 1 && si === 1) {
+            const grounds = gv.platforms.filter(p => p.h >= 30).sort((a, b) => a.x - b.x);
+            let best = null;
+            for (let k = 0; k < grounds.length - 1; k++) {
+              const wGap = grounds[k + 1].x - (grounds[k].x + grounds[k].w);
+              if (wGap > 60 && (!best || wGap > best.wGap)) best = { x1: grounds[k].x + grounds[k].w + 4, x2: grounds[k + 1].x - 4, wGap };
+            }
+            if (best) gv.hellGate = best;
+          }
+          list.push(gv);
+        }
       }
     }
     list.push(buildFinal());
@@ -896,7 +917,7 @@
   };
   const ENEMY_LOOK = {
     meadow: '#8fd463', desert: '#e6c078', snow: '#d8e8f8', volcano: '#5c4247',
-    night: '#55628f', ocean: '#6fc4d4', swamp: '#8aa34c', space: '#8a7ad0',
+    night: '#55628f', ocean: '#6fc4d4', swamp: '#8aa34c', space: '#8a7ad0', hell: '#c23427',
   };
   const CUT_INTRO = {
     emoji: '🗡️', bg: 'linear-gradient(160deg,#232c44,#10131f)',
@@ -966,6 +987,12 @@
       '👾 Но он вопит и созывает всех восьми боссов...',
       '🤖 Боссы слетаются и собираются в МЕГА-ДРЫН. БЕГИ И ОТСТРЕЛИВАЙ!',
     ] },
+    hell: { emoji: '😈', bg: 'linear-gradient(160deg,#5c1410,#160404)', title: 'СЕКРЕТ · АД', lines: [
+      '😤 Красная яма провалилась под ногами... и ты падаешь прямиком в АД.',
+      '😈 ЧЁРТ: «Ух ты, мясцо само пришло!» — и сдёргивает твоё снаряжение прямо из рук.',
+      '😐 Взгляд героя. Оружие теперь у чертей. Но тебе вручают их миниган — в аду он НЕ греется.',
+      '🔥 Продержись 60 секунд против чертей. ЛЮТАЯ МОЧИЛОВА НАЧИНАЕТСЯ!',
+    ] },
     victory: { emoji: '🏆', bg: 'linear-gradient(160deg,#2a4a2f,#0b1e12)', title: '🏆 ПОБЕДА · ИГРА ПРОЙДЕНА', lines: [
       '💀 МЕГА-ДРЫН повержен. От него остались дымящиеся модули...',
       '🐱 Кот трётся о ногу. Герой опускает дробовик. Все восемь глав покорены!',
@@ -1011,6 +1038,7 @@
     { id: 'minigun', emoji: '🔥', name: 'Миниган', ammoKey: 'minigun', cd: 5, spd: 14, burst: 10, bgap: 2 },
   ];
   function wpool(id) {
+    if (theHell && id === 'minigun') return Infinity;
     if (id === 'shotgun') return ammo;
     const w = WEAPONS.find(w2 => w2.id === id);
     return w.ammoKey ? wammo[w.ammoKey] : Infinity;
@@ -1025,6 +1053,7 @@
   let endless = false, endlessN = 0, ebest = 0;
   try { ebest = parseInt(localStorage.getItem('pf_ebest') || '0', 10) || 0; } catch (e) { ebest = 0; }
   let boss = null, fireballs = [], bossHazes = [], coyote = 0, playT = 0, lastSec = -1, mega = null;
+  let theHell = false, hellW = 'shotgun', hellFrames = 0, hellSpawn = 0, hellLastS = -1, hellReturn = 0;
   let aim = { mx: null, my: null };
   let god = false, infAmmo = false;
   let bank = +(localStorage.getItem('pf_bank') || 0) || 0;
@@ -1082,6 +1111,7 @@
     safeT = 0;
     angel = null;
     lastSafe = { x: lvl.spawn.x, y: lvl.spawn.y };
+    if (lvl.hellGate) flash('😈 Говорят, из одной ямы идёт красное свечение...', 100);
     updateHud();
   }
 
@@ -1132,6 +1162,108 @@
     flash('Тотем спас тебя!', 110);
   }
 
+  function enterHellCut() {
+    theHell = false;
+    state = 'menu';
+    playCut('hell', () => { enterHell(); });
+  }
+  function enterHell() {
+    hellReturn = levelIdx;
+    hellW = curW;
+    lvl = {
+      width: 1900, theme: 'hell',
+      spawn: { x: 120, y: 380 },
+      cat: { x: 48, y: 408 },
+      platforms: [
+        { x: 0, y: 440, w: 1900, h: 40 },
+        { x: 260, y: 350, w: 130, h: 14 },
+        { x: 640, y: 320, w: 150, h: 14 },
+        { x: 1060, y: 350, w: 160, h: 14 },
+        { x: 1450, y: 320, w: 130, h: 14 },
+      ],
+      coins: [], spikes: [], enemies: [], checkpoints: [], ammo: [],
+      flag: { x: -9999, y: 0 },
+    };
+    th = THEMES.hell;
+    platforms = lvl.platforms;
+    coins = []; spikes = []; flag = lvl.flag;
+    collected = [];
+    cpSnap = { collected: [], score };
+    curCp = { x: 120, y: 380 };
+    player = { x: 120, y: 380, w: PLAYER_W, h: PLAYER_H, vx: 0, vy: 0, onGround: false, face: 1 };
+    enemies = []; checkpoints = []; ammoBoxes = []; bullets = []; fireballs = [];
+    boss = null; mega = null; bossHazes = [];
+    catPickups = { x: 48, y: 408, w: 44, h: 36, given: true };
+    camX = 0; particles = []; splats = []; gibs = [];
+    curW = 'minigun'; mgHeat = 0; mgHot = false; mgLastHud = -1;
+    theHell = true; hellFrames = 3600; hellSpawn = 50; hellLastS = -1;
+    safeT = 50; appearT = 20;
+    lastSafe = { x: 120, y: 380 };
+    state = 'play';
+    menuEl.classList.add('hidden');
+    hideOverlay();
+    updateHud();
+    SFX.bossRoar();
+    shake = 10;
+    flash('😈 АД! Продержись 60 секунд — миниган не греется!', 150);
+  }
+  function exitHell() {
+    for (const e of enemies) if (!e.dead) spawnGibs(e.x + e.w / 2, e.y + 10, ['#c23427', '#7a1616', '#e86a4a'], 8);
+    enemies = [];
+    theHell = false;
+    curW = hellW;
+    bank += 300; saveProg();
+    SFX.win();
+    loadLevel(hellReturn);
+    safeT = 60; appearT = 20;
+    state = 'play';
+    updateHud();
+    flash('😈 ЧЕРТИ РАЗБИТЫ! +300 монет · Снаряжение вернули!', 160);
+  }
+  function impAI(e) {
+    if (e.vy === undefined) e.vy = 0;
+    e.vy += 0.42;
+    const px = player.x + player.w / 2;
+    e.dir = px > e.x + e.w / 2 ? 1 : -1;
+    e.x += e.dir * 2.1;
+    e.x = Math.max(10, Math.min(lvl.width - e.w - 10, e.x));
+    e.y += e.vy;
+    for (const pl of platforms) {
+      if (e.vy >= 0 && e.x + e.w > pl.x && e.x < pl.x + pl.w) {
+        const bot = e.y + e.h;
+        if (bot >= pl.y && bot <= pl.y + Math.max(24, e.vy + 8)) {
+          e.y = pl.y - e.h;
+          e.vy = -(5.6 + Math.random() * 3);
+          break;
+        }
+      }
+    }
+  }
+  function drawImp(e, bob) {
+    const cx = e.x + e.w / 2, y0 = e.y + bob;
+    ctx.save();
+    ctx.translate(cx, y0);
+    if (e.dir === -1) ctx.scale(-1, 1);
+    const w = e.w, h = e.h;
+    ctx.fillStyle = '#701510';
+    const wf = Math.sin(time * 14 + e.ph) * 7;
+    ctx.beginPath(); ctx.moveTo(-(w / 2 - 6), 10); ctx.quadraticCurveTo(-(w / 2 + 20), wf, -(w / 2 + 27), 17 + wf); ctx.quadraticCurveTo(-(w / 2 + 12), 17, -(w / 2 - 6), 19); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#a02820'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-(w / 2 - 8), h - 11); ctx.quadraticCurveTo(-(w / 2 + 16), h - 4, -(w / 2 + 18), h - 20); ctx.stroke();
+    ctx.fillStyle = '#c23427';
+    roundRect(-(w / 2) - 1, 4, w + 2, h - 4, 9); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 2.5; ctx.stroke();
+    ctx.fillStyle = '#f2d9b0';
+    ctx.beginPath(); ctx.moveTo(-(w / 2 - 3), 6); ctx.lineTo(-(w / 2 - 7), -6); ctx.lineTo(-(w / 2 - 11), 7); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(w / 2 - 3, 6); ctx.lineTo(w / 2 - 7, -6); ctx.lineTo(w / 2 - 11, 7); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffe14d';
+    ctx.beginPath(); ctx.arc(2, 13, 3.5, 0, Math.PI * 2); ctx.arc(-8, 13, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#401408';
+    ctx.beginPath(); ctx.arc(3, 14, 1.7, 0, Math.PI * 2); ctx.arc(-7, 14, 1.7, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5c0f0f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(-3, 18, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.restore();
+  }
   function onDeath(cause) {
     bossHazes = [];
     if (totem) { saveDeath(cause); return; }
@@ -1227,7 +1359,7 @@
   function fire() {
     if (state !== 'play') return;
     if (curW === 'katana') { if (fireCd <= 0) { katanaSlash(); fireCd = 24; } return; }
-    if (curW === 'minigun' && mgHot) { if (fireCd <= 0) { flash('Раскалился! Жди ♨️', 30); fireCd = 12; SFX.wall(); } return; }
+    if (curW === 'minigun' && mgHot && !theHell) { if (fireCd <= 0) { flash('Раскалился! Жди ♨️', 30); fireCd = 12; SFX.wall(); } return; }
     if (curW !== 'shotgun' && fireCd > 0) return;
     const W2 = WEAPONS.find(w2 => w2.id === curW);
     const isUzi = curW === 'uzi', isLaun = curW === 'launcher', isMini = curW === 'minigun', isKal = curW === 'kalash', isAvik = curW === 'avik', isPist = curW === 'pistol';
@@ -1237,13 +1369,13 @@
     const burstN = isBurst ? (infAmmo ? W2.burst : Math.min(W2.burst, Math.max(0, Math.floor(pool)))) : 1;
     if (!infAmmo) {
       if (curW === 'shotgun') ammo--;
-      else { wammo[W2.ammoKey] -= burstN; if (wammo[W2.ammoKey] % 4 === 0) saveProg(); }
+      else if (!theHell) { wammo[W2.ammoKey] -= burstN; if (wammo[W2.ammoKey] % 4 === 0) saveProg(); }
       fireCd = curW === 'shotgun' ? 0 : (W2.cd || 6) + (isBurst ? W2.burst * W2.bgap : 0);
     } else if (isBurst) {
       fireCd = (W2.cd || 6) + W2.burst * W2.bgap;
     }
     if (isMini) {
-      mgHeat = Math.min(100, mgHeat + 3.5 * burstN);
+      if (!theHell) mgHeat = Math.min(100, mgHeat + 3.5 * burstN);
       mgLastHud = -1;
       if (mgHeat >= 100 && !mgHot) { mgHot = true; flash('Миниган раскалился! Жди ♨️', 60); }
     }
@@ -1526,11 +1658,32 @@
     time += 1 / 60;
     playT += 1 / 60;
     const sec = Math.floor(playT);
-    if (sec !== lastSec && timerEl) { lastSec = sec; timerEl.textContent = '⏱ ' + fmtTime(playT); }
+    if (theHell) {
+      hellFrames = Math.max(0, hellFrames - 1);
+      const hs = Math.ceil(hellFrames / 60);
+      if (hs !== hellLastS) {
+        hellLastS = hs;
+        if (timerEl) timerEl.textContent = '😈 ЛЮТАЯ МОЧИЛОВА: ' + hs + ' с';
+        if (hs <= 10) shake = Math.max(shake, 2);
+        if (hs === 30 || hs === 10) flash(hs === 10 ? '😈 10 СЕКУНД!' : '😈 30 секунд!', 50);
+      }
+      if (hellFrames <= 0) { exitHell(); return; }
+      hellSpawn--;
+      if (hellSpawn <= 0) {
+        hellSpawn = 34 + Math.floor(Math.random() * 22);
+        if (enemies.filter(e2 => !e2.dead).length < 12) {
+          const n2 = 1 + (Math.random() < 0.35 ? 1 : 0);
+          for (let i = 0; i < n2; i++) {
+            enemies.push({ x: 80 + Math.random() * 1740, x1: 0, x2: 1840, y: -40, w: 30, h: 30, imp: true, dir: 1, dead: false, ph: Math.random() * 6, vy: 0 });
+          }
+        }
+      }
+    }
+    if (!theHell && sec !== lastSec && timerEl) { lastSec = sec; timerEl.textContent = '⏱ ' + fmtTime(playT); }
     shake = Math.max(0, shake - 0.5);
     muzzleT = Math.max(0, muzzleT - 1);
     if (fireCd > 0) fireCd--;
-    if (curW === 'minigun') {
+    if (curW === 'minigun' && !theHell) {
       mgHeat = Math.max(0, mgHeat - (mgHot ? 0.12 : 0.15));
       if (mgHot && mgHeat <= 30) mgHot = false;
       const hq = Math.round(mgHeat);
@@ -1619,6 +1772,10 @@
     coyote = player.onGround ? 7 : Math.max(0, coyote - 1);
 
     if (player.y > H + 60) {
+      if (!god && !endless && lvl.hellGate && player.x + player.w / 2 > lvl.hellGate.x1 && player.x + player.w / 2 < lvl.hellGate.x2) {
+        enterHellCut();
+        return;
+      }
       if (god) { player.x = curCp.x; player.y = curCp.y; player.vx = 0; player.vy = 0; }
       else { onDeath('Упал в пропасть!'); return; }
     }
@@ -1631,14 +1788,15 @@
 
     for (const e of enemies) {
       if (e.dead) continue;
-      if (e.x2 - e.x1 > 80) {
+      if (e.imp) { impAI(e); }
+      else if (e.x2 - e.x1 > 80) {
         e.x += e.dir * ENEMY_SPEED;
         if (e.x < e.x1) { e.x = e.x1; e.dir = 1; }
         if (e.x + e.w > e.x2) { e.x = e.x2 - e.w; e.dir = -1; }
       } else {
         e.dir = player.x + player.w / 2 > e.x + e.w / 2 ? 1 : -1;
       }
-      if (!god && safeT === 0 && rectsHit(body, e, 2)) { onDeath('Враг тебя поймал!'); return; }
+      if (!god && safeT === 0 && rectsHit(body, e, 2)) { onDeath(theHell ? 'Чёрт сожрал тебя! 😈' : 'Враг тебя поймал!'); return; }
     }
 
     if (boss && !boss.dead) {
@@ -2928,6 +3086,21 @@
       ctx.beginPath(); ctx.arc(c.x, c.y + wob, 5, 0, Math.PI * 2); ctx.fill();
     });
 
+    if (lvl.hellGate) {
+      const hg = lvl.hellGate;
+      const puls = 0.5 + Math.sin(time * 5) * 0.22;
+      const gl = ctx.createLinearGradient(0, 380, 0, H + 60);
+      gl.addColorStop(0, 'rgba(255,50,20,0)');
+      gl.addColorStop(1, 'rgba(255,60,20,' + puls.toFixed(2) + ')');
+      ctx.fillStyle = gl;
+      ctx.fillRect(hg.x1, 400, hg.x2 - hg.x1, 140);
+      for (let i = 0; i < 5; i++) {
+        const ey = H + 10 - ((time * 46 + i * 27) % 92);
+        ctx.fillStyle = 'rgba(255,220,120,' + (puls * 0.3).toFixed(2) + ')';
+        ctx.beginPath(); ctx.arc(hg.x1 + 18 + ((i * 37) % Math.max(1, hg.x2 - hg.x1 - 36)), ey, 2.2, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
     for (const p of platforms) drawPlatformMat(p);
 
     for (const s of splats) {
@@ -3322,6 +3495,7 @@
     for (const e of enemies) {
       if (e.dead) continue;
       const bob = Math.sin(time * 5 + e.ph) * 1.5;
+      if (e.imp) { drawImp(e, bob); continue; }
       ctx.fillStyle = ENEMY_LOOK[lvl.theme];
       roundRect(e.x, e.y + bob, e.w, e.h, 11);
       ctx.fill();
@@ -3584,6 +3758,109 @@
     ctx.strokeStyle = '#b8860b'; ctx.lineWidth = 2; ctx.stroke();
     ctx.fillStyle = '#fff3b0';
     ctx.beginPath(); ctx.arc(x - 2, y - 2, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+  function hellDevil(x, y, s, t) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.scale(s, s);
+    const wf = Math.sin(t * 10) * 8;
+    ctx.fillStyle = '#701510';
+    ctx.beginPath(); ctx.moveTo(-10, -44); ctx.quadraticCurveTo(-58, -66 + wf, -68, -28 + wf); ctx.quadraticCurveTo(-44, -34, -12, -30); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(10, -44); ctx.quadraticCurveTo(58, -66 - wf, 68, -28 - wf); ctx.quadraticCurveTo(44, -34, 12, -30); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#c23427';
+    roundRect(-26, -58, 52, 62, 16); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.55)'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = '#f2d9b0';
+    ctx.beginPath(); ctx.moveTo(-20, -58); ctx.lineTo(-26, -80); ctx.lineTo(-8, -60); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(20, -58); ctx.lineTo(26, -80); ctx.lineTo(8, -60); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#ffe14d';
+    ctx.beginPath(); ctx.arc(-10, -44, 5, 0, Math.PI * 2); ctx.arc(10, -44, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7a1a10';
+    ctx.beginPath(); ctx.arc(-8, -43, 2.2, 0, Math.PI * 2); ctx.arc(12, -43, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5c0f0f'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(0, -30, 10, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.moveTo(-6, -26); ctx.lineTo(-3, -19); ctx.lineTo(0, -26); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(2, -26); ctx.lineTo(5, -19); ctx.lineTo(8, -26); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function hellMinigun(x, y, ang, s) {
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s);
+    ctx.fillStyle = '#1c1c20';
+    roundRect(-36, -8, 28, 15, 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 2; ctx.stroke();
+    for (const o of [-4, 0, 4]) { ctx.fillStyle = '#33333a'; ctx.fillRect(0, o - 1.5, 46, 3); }
+    ctx.fillStyle = '#ff7b4a';
+    ctx.beginPath(); ctx.ellipse(46, 0, 4, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  function hellCutScene(t) {
+    const step = cutPos;
+    for (let i = 0; i < 26; i++) {
+      const fy = 396 - ((t * 70 + i * 37) % 330);
+      ctx.fillStyle = 'rgba(255,120,40,' + (0.2 + 0.4 * Math.abs(Math.sin(t * 3 + i))).toFixed(3) + ')';
+      ctx.beginPath(); ctx.arc(28 + i * 31, fy, 2.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (step === 0) {
+      cutHeroDraw(200, 440, 1, t);
+      const dx = Math.max(330, 780 - t * 240);
+      hellDevil(dx, 350, 1.1, t);
+      cutBubble(dx, 264, 'Мясцо само пришло!', 0.85);
+    } else if (step === 1) {
+      hellDevil(400, 330, 1.7, t);
+      ctx.save();
+      ctx.translate(540 + Math.sin(t * 2) * 9, 296 + Math.sin(t * 3) * 7);
+      ctx.rotate(Math.sin(t * 1.5) * 0.25);
+      hellMinigun(0, 0, 0.5, 1.1);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(236 + Math.sin(t * 2 + 2) * 8, 318 + Math.cos(t * 2.6) * 7);
+      ctx.rotate(Math.sin(t * 2) * 0.2);
+      ctx.font = '34px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('🔫💸🎒', 0, 0);
+      ctx.textAlign = 'left';
+      ctx.restore();
+      cutBubble(400, 226, 'Снаряжение — МОЁ!', 0.9);
+    } else if (step === 2) {
+      ctx.fillStyle = 'rgba(8,3,3,.62)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(400, 262);
+      ctx.fillStyle = '#d8434e';
+      roundRect(-92, -128, 184, 210, 42); ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,.5)'; ctx.lineWidth = 4; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.ellipse(-34, -30, 24, 11, 0.12, 0, Math.PI * 2); ctx.ellipse(34, -30, 24, 11, -0.12, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#25140f';
+      ctx.beginPath(); ctx.arc(-28, -29, 6, 0, Math.PI * 2); ctx.arc(40, -29, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#5c1212'; ctx.lineWidth = 9; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(-58, -52); ctx.lineTo(-12, -40); ctx.moveTo(58, -52); ctx.lineTo(12, -40); ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(0, 28, 26, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+      ctx.restore();
+      cutBubble(400, 428, 'Верну снаряжение... ВСЕМ ИМ.', 0.92);
+    } else {
+      cutHeroDraw(180, 440, 1, t);
+      hellDevil(560, 352, 1.25, t);
+      ctx.save();
+      ctx.translate(408, 372 + Math.sin(t * 3) * 3);
+      ctx.rotate(-0.5);
+      hellMinigun(0, 0, 0, 0.8);
+      ctx.restore();
+      ctx.globalAlpha = 0.5;
+      ctx.fillStyle = '#701510';
+      for (let i = 0; i < 5; i++) {
+        const ix = 600 + i * 46;
+        roundRect(ix, 420, 22, 20, 7); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ix + 4, 420); ctx.lineTo(ix + 2, 410); ctx.lineTo(ix + 8, 419); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(ix + 18, 420); ctx.lineTo(ix + 20, 410); ctx.lineTo(ix + 14, 419); ctx.closePath(); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      cutBubble(560, 262, 'ДЕРЖИ, МЯСЦО! В аду он не греется!', 0.9);
+    }
   }
   function cutProp(theme, tt) {
     if (theme === 'meadow') {
@@ -4322,6 +4599,8 @@
         ctx.fillText('ИГРА ПРОЙДЕНА!', 400, 172);
         ctx.textAlign = 'left';
       }
+    } else if (cutKey === 'hell') {
+      hellCutScene(t);
     } else {
       const skin = BOSS_SKINS[cutKey];
       if (step === 0) {
@@ -4383,6 +4662,13 @@
     if (cutEl && !cutEl.classList.contains('hidden')) { drawCutFrame(); return; }
     drawBackground();
     drawWorld();
+    if (theHell) {
+      const vg = ctx.createRadialGradient(W / 2, H / 2, H * 0.42, W / 2, H / 2, H * 0.95);
+      vg.addColorStop(0, 'rgba(255,40,0,0)');
+      vg.addColorStop(1, 'rgba(255,30,0,' + (0.18 + Math.sin(time * 6) * 0.07).toFixed(2) + ')');
+      ctx.fillStyle = vg;
+      ctx.fillRect(0, 0, W, H);
+    }
     if (flashText) {
       ctx.font = flashText.text.length > 4 ? 'bold 30px Segoe UI, system-ui, sans-serif' : 'bold 44px Segoe UI, system-ui, sans-serif';
       ctx.fillStyle = 'rgba(20,30,50,' + Math.min(1, flashText.life / 30) + ')';
@@ -4404,7 +4690,7 @@
 
   function updateHud() {
     scoreEl.textContent = 'Монеты: ' + score;
-    levelEl.textContent = lvl && lvl.final ? '🔥 ФИНАЛ · МЕГА-ДРЫН' : (endless ? '∞ ур. ' + (endlessN + 1) : 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1));
+    levelEl.textContent = lvl && lvl.final ? '🔥 ФИНАЛ · МЕГА-ДРЫН' : (theHell ? '😈 АД' : (endless ? '∞ ур. ' + (endlessN + 1) : 'Гл ' + (Math.floor(levelIdx / 10) + 1) + ' · ур.' + (levelIdx % 10 + 1)));
     const W2h = WEAPONS.find(w2 => w2.id === curW);
     if (curW === 'shotgun') ammoEl.textContent = '🔫 ' + (infAmmo ? '∞' : ammo);
     else if (W2h.ammoKey) ammoEl.textContent = W2h.emoji + ' ' + W2h.name + ' ' + (infAmmo ? '∞' : wammo[W2h.ammoKey]) + (curW === 'minigun' && !infAmmo ? (mgHot ? ' ♨️ ПЕРЕГРЕВ!' : ' ♨️' + Math.round(mgHeat) + '%') : '');
@@ -4766,7 +5052,7 @@
   document.getElementById('setReset').onclick = () => {
     if (!confirm('Сбросить весь прогресс: монеты, покупки, рекорды?')) return;
     bank = 0; unlocked = 1; owned = {}; equipped = {}; score = 0;
-    wowned = {}; wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 }; mgHeat = 0; mgHot = false; mgLastHud = -1; curW = 'shotgun';
+    wowned = {}; wammo = { pistol: 0, kalash: 0, uzi: 0, avik: 0, launcher: 0, minigun: 0 }; mgHeat = 0; mgHot = false; mgLastHud = -1; curW = 'shotgun'; theHell = false; hellFrames = 0;
     try { localStorage.removeItem('pf_bank'); localStorage.removeItem('pf_unlocked'); localStorage.removeItem('pf_owned'); localStorage.removeItem('pf_equipped'); localStorage.removeItem('pf_best'); localStorage.removeItem('pf_wowned'); localStorage.setItem('pf_wammo', JSON.stringify(wammo)); } catch (e) {}
     setMuted(false);
     setShowAim(true);
@@ -4813,6 +5099,14 @@
   document.getElementById('admAmmo').onclick = e => { infAmmo = !infAmmo; e.target.classList.toggle('on', infAmmo); };
   document.getElementById('admPlus').onclick = () => { ammo += 10; for (const k in wammo) wammo[k] += 60; mgHeat = 0; mgHot = false; saveProg(); updateHud(); flash('+патроны всем', 40); };
   document.getElementById('admTotem').onclick = () => { totem = !totem; updateHud(); flash(totem ? 'Тотем выдан' : 'Тотем снят', 40); };
+  document.getElementById('admHell').onclick = () => {
+    if (state === 'menu') return;
+    theHell = false;
+    levelIdx = 11;
+    loadLevel(11);
+    if (lvl.hellGate) { player.x = (lvl.hellGate.x1 + lvl.hellGate.x2) / 2 - 15; player.y = -60; player.vx = 0; player.vy = 0; }
+    state = 'play';
+  };
   document.getElementById('admKillBoss').onclick = () => {
     if (mega && !mega.dead) {
       for (const pt of mega.parts) { pt.dead = true; pt.hp = 0; }
