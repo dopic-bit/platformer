@@ -83,7 +83,7 @@
     cursor: pointer;
   }
   .tab.on { background: #ff6b6b; color: #fff; }
-  #cutscene { position: absolute; inset: 0; z-index: 60; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 22px; }
+  #cutscene { position: absolute; inset: 0; z-index: 80; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 22px; }
   #cutscene.hidden { display: none; }
   .cst {
     width: 540px; max-width: 94%; text-align: center; color: #eef3ff;
@@ -1852,11 +1852,12 @@
     ctx.restore();
   }
 
-  function drawEnemyHat(e, bob) {
+  function drawEnemyHat(e, bob, cTheme) {
+    const thm = cTheme || lvl.theme;
     const tx = e.x + e.w / 2, ty = e.y + bob;
     ctx.lineWidth = 2;
     ctx.strokeStyle = '#1a1a1a';
-    if (lvl.theme === 'meadow') {
+    if (thm === 'meadow') {
       ctx.fillStyle = '#fff';
       for (let i = 0; i < 5; i++) {
         const a = -Math.PI / 2 + (i - 2) * 0.28;
@@ -1864,34 +1865,34 @@
       }
       ctx.fillStyle = '#ffcf3f';
       ctx.beginPath(); ctx.arc(tx, ty - 4, 2.4, 0, Math.PI * 2); ctx.fill();
-    } else if (lvl.theme === 'desert') {
+    } else if (thm === 'desert') {
       ctx.fillStyle = '#e8c07a';
       ctx.beginPath(); ctx.ellipse(tx, ty - 5, 15, 3.5, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(tx, ty - 8, 7, 4, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    } else if (lvl.theme === 'snow') {
+    } else if (thm === 'snow') {
       ctx.fillStyle = '#d84a4a';
       ctx.beginPath(); ctx.arc(tx, ty - 4, 8, Math.PI, 0); ctx.closePath(); ctx.fill();
       ctx.fillStyle = '#f4f9ff';
       ctx.fillRect(tx - 9, ty - 5, 18, 3);
       ctx.beginPath(); ctx.arc(tx, ty - 13, 3.2, 0, Math.PI * 2); ctx.fill();
-    } else if (lvl.theme === 'volcano') {
+    } else if (thm === 'volcano') {
       ctx.fillStyle = '#8a8f99';
       ctx.beginPath(); ctx.moveTo(tx - 10, ty - 2); ctx.lineTo(tx - 14, ty - 11); ctx.lineTo(tx - 4, ty - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(tx + 10, ty - 2); ctx.lineTo(tx + 14, ty - 11); ctx.lineTo(tx + 4, ty - 6); ctx.closePath(); ctx.fill(); ctx.stroke();
-    } else if (lvl.theme === 'night') {
+    } else if (thm === 'night') {
       ctx.fillStyle = 'rgba(16,20,36,.9)';
       roundRect(tx - 13, ty + 2, 26, 6, 3); ctx.fill();
       ctx.fillStyle = '#ffcf3f';
       ctx.beginPath(); ctx.arc(tx - 5, ty + 5, 1.7, 0, Math.PI * 2); ctx.arc(tx + 5, ty + 5, 1.7, 0, Math.PI * 2); ctx.fill();
-    } else if (lvl.theme === 'ocean') {
+    } else if (thm === 'ocean') {
       ctx.fillStyle = '#e84f4f';
       roundRect(tx - 12, ty - 4, 24, 5, 2); ctx.fill();
       ctx.beginPath(); ctx.moveTo(tx + 10, ty - 3); ctx.lineTo(tx + 18, ty - 6); ctx.lineTo(tx + 12, ty + 2); ctx.closePath(); ctx.fill();
-    } else if (lvl.theme === 'swamp') {
+    } else if (thm === 'swamp') {
       ctx.fillStyle = '#5a7d3a';
       ctx.beginPath(); ctx.arc(tx, ty - 4, 9, Math.PI, 0); ctx.closePath(); ctx.fill();
       ctx.fillRect(tx - 11, ty - 5, 22, 3);
-    } else if (lvl.theme === 'space') {
+    } else if (thm === 'space') {
       ctx.fillStyle = 'rgba(190,220,255,.3)';
       ctx.beginPath(); ctx.arc(tx, ty + 2, 14, Math.PI, 0); ctx.closePath(); ctx.fill(); ctx.stroke();
       ctx.strokeStyle = '#7fd8ff';
@@ -2352,66 +2353,133 @@
   }
 
   let cutKey = null, cutStepAt = 0, cutOpenAt = 0;
-  function cutHeroDraw(x, y, f, tt) {
-    const b = Math.sin(tt * 7) * 2;
-    ctx.strokeStyle = '#1a1a1a';
-    ctx.lineWidth = 3;
-    ctx.fillStyle = '#ff6b6b';
-    roundRect(x - 15, y - 38 + b, 30, 38, 14);
-    ctx.fill(); ctx.stroke();
+  function cutHeroDraw(x, y, f, tt, mv) {
+    const dark = '#d92b22';
+    const outline = '#1a1a1a';
     ctx.save();
-    ctx.translate(x + f * 12, y - 12 + b);
-    ctx.scale(f, 1);
-    ctx.fillStyle = '#1a1a1a';
-    roundRect(6, -3, 30, 6, 3); ctx.fill();
-    ctx.fillStyle = '#8a5a33';
-    roundRect(2, -3, 13, 9, 3); ctx.fill();
-    ctx.restore();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x - 6 + f * 3, y - 26 + b, 5, 0, Math.PI * 2);
-    ctx.arc(x + 7 + f * 3, y - 26 + b, 5, 0, Math.PI * 2);
+    ctx.translate(x, y);
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 2.5;
+    const swing = mv ? Math.sin(tt * 13) * 4 : 0;
+    const leg = (lx, ly) => { ctx.fillStyle = dark; roundRect(lx, ly, 9, 12, 4.5); ctx.fill(); ctx.stroke(); };
+    leg(-9 + swing, -12);
+    leg(0 - swing, -12);
+    const bg = ctx.createRadialGradient(-6, -29, 3, 0, -23, 24);
+    bg.addColorStop(0, '#ff5748');
+    bg.addColorStop(0.55, '#ee332a');
+    bg.addColorStop(1, '#c22420');
+    ctx.fillStyle = bg;
+    roundRect(-15, -38, 30, 30, 14);
     ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.beginPath(); ctx.ellipse(-7, -30, 6, 3.5, -0.4, 0, Math.PI * 2); ctx.fill();
+    const pu = Math.sin(tt * 2.5) * 1.2;
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(-2.5, -28, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(8.5, -28, 5.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = outline;
+    ctx.beginPath(); ctx.arc(-1, -27.5 + pu, 2.2, 0, Math.PI * 2); ctx.arc(10, -27.5 + pu, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.arc(x - 6 + f * 3 + f * 2, y - 26 + b, 2.2, 0, Math.PI * 2);
-    ctx.arc(x + 7 + f * 3 + f * 2, y - 26 + b, 2.2, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.moveTo(-6.5, -35.5); ctx.lineTo(1, -36.5);
+    ctx.moveTo(5, -36.5); ctx.lineTo(12.5, -35.5);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(f * 6, -21);
+    ctx.scale(f, 1);
+    ctx.rotate(-0.07);
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = outline;
+    ctx.fillStyle = '#8B5A2B';
+    ctx.beginPath();
+    ctx.moveTo(-1, -2); ctx.quadraticCurveTo(-12, 2, -11, 11); ctx.lineTo(-3, 9);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#2C2C2C';
+    roundRect(-1, -4, 10, 9, 2); ctx.fill(); ctx.stroke();
+    roundRect(8, -2, 24, 4, 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#1a1a1a';
+    roundRect(31, -2.5, 4, 5, 1.5); ctx.fill();
+    ctx.fillStyle = '#8B5A2B';
+    roundRect(13, 1.5, 14, 6, 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(0,0,0,.4)';
+    ctx.beginPath(); ctx.moveTo(1, 6); ctx.lineTo(-0.5, 8); ctx.stroke();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 8;
+    ctx.beginPath(); ctx.moveTo(3, 7); ctx.lineTo(16, 5); ctx.stroke();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 4.5;
+    ctx.beginPath(); ctx.moveTo(3, 7); ctx.lineTo(16, 5); ctx.stroke();
+    ctx.strokeStyle = outline;
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.moveTo(-4, 10); ctx.lineTo(19, 4); ctx.stroke();
+    ctx.strokeStyle = dark;
+    ctx.lineWidth = 4;
+    ctx.beginPath(); ctx.moveTo(-4, 10); ctx.lineTo(19, 4); ctx.stroke();
+    ctx.restore();
+    ctx.restore();
   }
   function cutCatDraw(x, y, tt) {
+    const cx0 = x - 10, cy0 = y - 30;
     const b = Math.sin(tt * 7) * 1.5;
-    ctx.strokeStyle = '#8f9fb8';
+    ctx.strokeStyle = COLORS.cat;
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(x + 2, y + 6);
-    ctx.quadraticCurveTo(x - 14, y - 4, x - 8 + Math.sin(tt * 3) * 3, y - 16);
+    ctx.moveTo(cx0 + 2, cy0 + 20);
+    ctx.quadraticCurveTo(cx0 - 14, cy0 + 10, cx0 - 8 + Math.sin(tt * 2) * 2, cy0 - 2);
     ctx.stroke();
-    ctx.fillStyle = '#8f9fb8';
-    roundRect(x - 12, y - 8 + b, 26, 20, 8); ctx.fill();
-    ctx.beginPath(); ctx.arc(x + 27, y - 8 + b, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = COLORS.cat;
+    roundRect(cx0, cy0 + 8 + b, 28, 22, 8); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx0 + 30, cy0 + 8 + b, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx0 + 21, cy0 + 1 + b); ctx.lineTo(cx0 + 23, cy0 - 9 + b); ctx.lineTo(cx0 + 28, cy0 + 0 + b);
+    ctx.moveTo(cx0 + 33, cy0 + 0 + b); ctx.lineTo(cx0 + 37, cy0 - 9 + b); ctx.lineTo(cx0 + 39, cy0 + 1 + b);
+    ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(x + 24, y - 9 + b, 3, 0, Math.PI * 2); ctx.arc(x + 31, y - 9 + b, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx0 + 27, cy0 + 7 + b, 3, 0, Math.PI * 2);
+    ctx.arc(cx0 + 34, cy0 + 7 + b, 3, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#2b3a55';
-    ctx.beginPath(); ctx.arc(x + 24, y - 9 + b, 1.4, 0, Math.PI * 2); ctx.arc(x + 31, y - 9 + b, 1.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx0 + 27, cy0 + 7 + b, 1.4, 0, Math.PI * 2);
+    ctx.arc(cx0 + 34, cy0 + 7 + b, 1.4, 0, Math.PI * 2);
+    ctx.fill();
+    if (Math.floor(tt * 2) % 4 === 0) {
+      ctx.fillStyle = COLORS.cat;
+      roundRect(cx0 + 38, cy0 + 5 + b, 3, 2, 1); ctx.fill();
+      roundRect(cx0 + 38, cy0 + 10 + b, 3, 2, 1); ctx.fill();
+    }
   }
-  function cutVillainDraw(x, y, sc, col, tt) {
-    const bob = Math.sin(tt * 4) * 3 * sc;
-    ctx.fillStyle = col;
-    ctx.strokeStyle = '#120a18';
-    ctx.lineWidth = 4;
-    roundRect(x - 32 * sc, y - 56 * sc + bob * 2, 64 * sc, 56 * sc, 12 * sc);
-    ctx.fill(); ctx.stroke();
+  function cutEnemyDraw(ex, ey, theme, bob, dir) {
+    ctx.fillStyle = ENEMY_LOOK[theme];
+    roundRect(ex, ey + bob, 28, 26, 11);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,.55)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    const eX = dir === 1 ? ex + 11 : ex + 5;
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
-    ctx.moveTo(x - 24 * sc, y - 50 * sc + bob * 2); ctx.lineTo(x - 30 * sc, y - 68 * sc + bob * 2); ctx.lineTo(x - 12 * sc, y - 54 * sc + bob * 2);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.arc(eX + 5, ey + 10 + bob, 4, 0, Math.PI * 2);
+    ctx.arc(eX - 1, ey + 10 + bob, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#2b3a55';
     ctx.beginPath();
-    ctx.moveTo(x + 24 * sc, y - 50 * sc + bob * 2); ctx.lineTo(x + 30 * sc, y - 68 * sc + bob * 2); ctx.lineTo(x + 12 * sc, y - 54 * sc + bob * 2);
-    ctx.closePath(); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#120a18';
-    ctx.fillRect(x - 22 * sc, y - 30 * sc + bob * 2, 44 * sc, 12 * sc);
-    ctx.fillStyle = '#ff4040';
-    ctx.fillRect(x - 18 * sc, y - 40 * sc + bob * 2, 10 * sc, 8 * sc);
-    ctx.fillRect(x + 8 * sc, y - 40 * sc + bob * 2, 10 * sc, 8 * sc);
+    ctx.arc(eX + 5 + dir, ey + 10 + bob, 1.8, 0, Math.PI * 2);
+    ctx.arc(eX - 1 + dir, ey + 10 + bob, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#2b3a55';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(eX - 6, ey + 3 + bob); ctx.lineTo(eX - 1, ey + 6 + bob);
+    ctx.moveTo(eX + 12, ey + 3 + bob); ctx.lineTo(eX + 7, ey + 6 + bob);
+    ctx.stroke();
+    drawEnemyHat({ x: ex, y: ey + bob, w: 28 }, 0, theme);
   }
   function cutCoin(x, y) {
     ctx.fillStyle = '#ffc93c';
@@ -2784,7 +2852,11 @@
         for (let i = 0; i < 6; i++) cutCoin(180 + i * 90, 356 + Math.sin(t * 2 + i) * 6);
         cutHeroDraw(60, 440, 1, t);
       } else if (step === 1) {
-        cutVillainDraw(560, 460, 1.5, '#3a2440', t);
+        ctx.save();
+        ctx.translate(522, 391);
+        ctx.scale(1.35, 1.35);
+        drawBossBody(BOSS_SKINS.space, 0, 0, true, false, t);
+        ctx.restore();
         const sx = [150, 260, 340, 60, 420, 510];
         for (let i = 0; i < 6; i++) {
           const pr = (t * 0.55 + i * 0.16) % 1;
@@ -2812,15 +2884,19 @@
         }
       } else if (step === 3) {
         const hx = Math.min(-30 + t * 190, 230);
-        cutHeroDraw(hx, 440, 1, t);
+        cutHeroDraw(hx, 440, 1, t, hx < 220);
         if (hx < 220) cutDust(hx - 18, 438, t);
         cutCatDraw(hx - 64, 452, t);
       } else {
         cutHeroDraw(300, 440, 1, t);
         cutCatDraw(364, 452, t);
         cutBubble(300, 340, 'Верну монеты!', 0.75 + 0.25 * Math.sin(t * 2.5));
-        ctx.globalAlpha = 0.5;
-        cutVillainDraw(700, 445, 1, '#2a1a33', t);
+        ctx.globalAlpha = 0.45;
+        ctx.save();
+        ctx.translate(671, 394);
+        ctx.scale(0.92, 0.92);
+        drawBossBody(BOSS_SKINS.space, 0, 0, true, false, t);
+        ctx.restore();
         ctx.globalAlpha = 1;
         for (let i = 0; i < 3; i++) cutCoin(470 + i * 46, 350 + Math.sin(t * 2 + i) * 7);
       }
@@ -2828,7 +2904,7 @@
       const skin = BOSS_SKINS[cutKey];
       if (step === 0) {
         const hx = Math.min(-30 + t * 190, 190);
-        cutHeroDraw(hx, 440, 1, t);
+        cutHeroDraw(hx, 440, 1, t, hx < 180);
         if (hx < 180) cutDust(hx - 18, 438, t);
         else cutBubble(hx + 46, 350, 'Пахнет бедой...', 0.85);
         cutCatDraw(hx - 64, 452, t);
@@ -2836,21 +2912,7 @@
         cutHeroDraw(140, 440, 1, t);
         for (let i = 0; i < 3; i++) {
           const bounce = Math.abs(Math.sin(t * 3 + i * 1.3)) * 12;
-          ctx.fillStyle = ENEMY_LOOK[cutKey];
-          ctx.strokeStyle = 'rgba(0,0,0,.55)';
-          ctx.lineWidth = 2.5;
-          roundRect(450 + i * 105, 448 - 26 - bounce, 28, 26, 11);
-          ctx.fill(); ctx.stroke();
-          ctx.fillStyle = '#fff';
-          ctx.beginPath(); ctx.arc(459 + i * 105, 448 - 16 - bounce, 3.5, 0, Math.PI * 2); ctx.arc(468 + i * 105, 448 - 16 - bounce, 3.5, 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#2b3a55';
-          ctx.beginPath(); ctx.arc(460 + i * 105, 448 - 16 - bounce, 1.7, 0, Math.PI * 2); ctx.arc(469 + i * 105, 448 - 16 - bounce, 1.7, 0, Math.PI * 2); ctx.fill();
-          ctx.strokeStyle = '#1a1a1a';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.moveTo(454 + i * 105, 448 - 24 - bounce); ctx.lineTo(463 + i * 105, 448 - 21 - bounce);
-          ctx.moveTo(466 + i * 105, 448 - 21 - bounce); ctx.lineTo(475 + i * 105, 448 - 24 - bounce);
-          ctx.stroke();
+          cutEnemyDraw(450 + i * 105, 422 - bounce, cutKey, 0, -1);
         }
       } else {
         const shake = Math.max(0, 1 - t / 0.8) * 5;
@@ -2941,6 +3003,7 @@
     const theme = LEVELS[i].theme;
     const chain = ['intro'];
     if (i % 10 === 0) chain.push(theme);
+    menuEl.classList.add('hidden');
     if (chain.length === 1) { launchLevel(i); return; }
     const run = () => {
       const k = chain.shift();
@@ -3019,7 +3082,7 @@
       if (state === 'menu') startLevel(0);
     }
     if (e.code === 'Escape') {
-      if (cutEl && !cutEl.classList.contains('hidden')) { cutDone = null; cutEl.classList.add('hidden'); }
+      if (cutEl && !cutEl.classList.contains('hidden')) { cutDone = null; cutEl.classList.add('hidden'); state = 'menu'; showMenuScr('root'); return; }
       if (state === 'play') toMenu();
     }
     if (['KeyX','KeyF'].includes(e.code)) fire();
